@@ -2,49 +2,102 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Pro Filter App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <title>Immersive Laplacian Filter</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
-        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; text-align: center; }
-        #controls { background: #222; padding: 15px; border-bottom: 2px solid #0f0; display: none; }
-        select, button { padding: 10px; margin: 5px; border-radius: 5px; font-weight: bold; }
-        canvas { width: 100%; max-width: 800px; margin-top: 10px; border: 1px solid #333; }
-        #loading { padding: 50px; font-size: 1.5rem; color: #0f0; }
+        /* This makes the page take up the whole screen */
+        html, body { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background: #000; overflow: hidden; position: fixed;
+        }
+        
+        /* The Canvas covers the background like a wallpaper */
+        canvas { 
+            position: absolute; top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            object-fit: cover; /* This crops the edges slightly to fill the screen */
+            z-index: 1;
+        }
+
+        #controls { 
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            background: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 10px;
+            z-index: 10; display: none; color: #0f0; font-family: monospace;
+            max-height: 80vh; overflow-y: auto;
+        }
+
+        .control-group { margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+        label { display: block; font-size: 10px; }
+        input, select { width: 100%; margin-top: 5px; }
+
+        #ui-toggle {
+            position: absolute; bottom: 20px; right: 20px;
+            z-index: 20; background: rgba(0,255,0,0.5); color: white;
+            border: none; border-radius: 50%; width: 50px; height: 50px;
+        }
+
+        #loading { position: fixed; top: 45%; width: 100%; text-align: center; color: #0f0; z-index: 100; }
         #webcam { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="loading">⌛ Loading Python & OpenCV...</div>
+    <div id="loading">Initializing Neural Matrix...</div>
+
+    <button id="ui-toggle" onclick="toggleUI()">⚙️</button>
 
     <div id="controls">
-        <strong>⚙️ SETTINGS:</strong>
-        <select id="resSelect">
-            <option value="320">360p (Smooth/Fast)</option>
-            <option value="640" selected>480p (Standard)</option>
-            <option value="1280">720p (Slow/High Quality)</option>
-        </select>
-        <button id="startBtn" onclick="startCameraJS()" style="background:#0f0">▶ START CAMERA</button>
-        <div id="fps" style="font-size: 12px; color: #888; margin-top: 5px;">FPS: 0</div>
+        <div class="control-group">
+            <button onclick="startCameraJS()" style="width:100%; background:#0f0; color:#000; font-weight:bold;">START SENSOR</button>
+        </div>
+
+        <div class="control-group">
+            <label>RESOLUTION</label>
+            <select id="resSelect">
+                <option value="240">240p (Turbo)</option>
+                <option value="480" selected>480p (Balanced)</option>
+                <option value="720">720p (Heavy)</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>FPS LIMIT: <span id="fpsLimitVal">30</span></label>
+            <input type="range" id="fpsSlider" min="5" max="60" value="30">
+        </div>
+
+        <div class="control-group">
+            <label>LAPLACIAN THICKNESS: <span id="thickVal">5</span></label>
+            <input type="range" id="thickSlider" min="1" max="7" step="2" value="5">
+        </div>
+
+        <div class="control-group">
+            <label>NOISE BLUR: <span id="blurVal">5</span></label>
+            <input type="range" id="blurSlider" min="1" max="15" step="2" value="5">
+        </div>
+        <div id="fpsDisplay">FPS: --</div>
     </div>
 
     <video id="webcam" autoplay playsinline></video>
     <canvas id="outputCanvas"></canvas>
 
     <script>
+        function toggleUI() {
+            const ctrl = document.getElementById('controls');
+            ctrl.style.display = (ctrl.style.display === 'none') ? 'block' : 'none';
+        }
+
         async function startCameraJS() {
             const video = document.getElementById('webcam');
             const res = document.getElementById('resSelect').value;
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: parseInt(res), facingMode: "user" }, 
+                    video: { height: {ideal: parseInt(res)}, facingMode: "user" }, 
                     audio: false 
                 });
                 video.srcObject = stream;
-                document.getElementById('startBtn').innerText = "🔄 UPDATE RESOLUTION";
-            } catch (err) { alert("Error: " + err); }
+            } catch (err) { alert(err); }
         }
 
         function pythonReady() {
@@ -65,13 +118,28 @@
         video = document.getElementById("webcam")
         canvas = document.getElementById("outputCanvas")
         ctx = canvas.getContext("2d")
-        fps_display = document.getElementById("fps")
         
-        last_time = time.time()
+        fps_slider = document.getElementById("fpsSlider")
+        blur_slider = document.getElementById("blurSlider")
+        thick_slider = document.getElementById("thickSlider")
+
+        last_frame_time = 0
         frames = 0
+        fps_timer = time.time()
 
         def loop(t):
-            global last_time, frames
+            global last_frame_time, frames, fps_timer
+            
+            target_fps = int(fps_slider.value)
+            document.getElementById("fpsLimitVal").innerText = target_fps
+            
+            current_time = time.time()
+            if (current_time - last_frame_time) < (1.0 / target_fps):
+                requestAnimationFrame(create_proxy(loop))
+                return
+
+            last_frame_time = current_time
+
             if video.videoWidth > 0:
                 if canvas.width != video.videoWidth:
                     canvas.width = video.videoWidth
@@ -80,36 +148,38 @@
                 ctx.drawImage(video, 0, 0)
                 img_data = ctx.getImageData(0, 0, canvas.width, canvas.height)
                 
-                # Buffer fix
                 pixel_data = img_data.data.to_py()
                 frame = np.frombuffer(pixel_data, dtype=np.uint8).reshape((canvas.height, canvas.width, 4))
                 
-                # --- YOUR ORIGINAL LOGIC (Optimized for Web) ---
-                # Convert RGBA to BGR
+                # Full Mirror for Selfie
+                frame = cv2.flip(frame, 1)
+
                 bgr = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+                
+                # Logic: Gray -> Blur -> Laplacian -> Thresh -> Mask
+                b_size = int(blur_slider.value)
+                document.getElementById("blurVal").innerText = b_size
                 gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-                blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+                blurred = cv2.GaussianBlur(gray, (b_size, b_size), 0)
                 
-                # Laplacian
-                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=5)
+                k_size = int(thick_slider.value)
+                document.getElementById("thickVal").innerText = k_size
+                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=k_size)
+                
                 _, thresh = cv2.threshold(edges, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-                
-                # Apply the color mask
                 mask = np.zeros_like(bgr)
                 mask[thresh != 0] = bgr[thresh != 0]
-                # -----------------------------------------------
 
-                # Convert back to browser-friendly RGBA
                 res_rgba = cv2.cvtColor(mask, cv2.COLOR_BGR2RGBA)
                 img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res_rgba.tobytes()), canvas.width, canvas.height)
                 ctx.putImageData(img_ptr, 0, 0)
 
                 # FPS Counter
                 frames += 1
-                if time.time() - last_time > 1:
-                    fps_display.innerText = f"FPS: {frames}"
+                if time.time() - fps_timer > 1:
+                    document.getElementById("fpsDisplay").innerText = f"FPS: {frames}"
                     frames = 0
-                    last_time = time.time()
+                    fps_timer = time.time()
 
             requestAnimationFrame(create_proxy(loop))
 
