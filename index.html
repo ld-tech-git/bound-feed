@@ -2,25 +2,30 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Magic Camera - Final Fix</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <title>Python Magic Camera</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
-        body { background: #111; color: #0f0; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
-        canvas { width: 100%; max-width: 500px; border: 2px solid #333; border-radius: 10px; }
+        body { background: #000; color: #0f0; font-family: sans-serif; text-align: center; margin: 0; padding: 10px; }
+        canvas { width: 100%; max-width: 640px; border: 2px solid #333; border-radius: 8px; background: #111; }
         #webcam { display: none; }
-        #startBtn { background: #00ff00; color: black; border: none; padding: 15px 30px; font-size: 18px; border-radius: 5px; font-weight: bold; margin: 20px; cursor: pointer; }
+        #startBtn { background: #00ff00; color: #000; border: none; padding: 20px 40px; font-size: 1.2rem; 
+                    border-radius: 50px; font-weight: bold; margin: 20px; cursor: pointer; box-shadow: 0 0 20px rgba(0,255,0,0.4); }
+        #status { font-size: 14px; color: #888; margin-bottom: 10px; }
+        .loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); 
+                           display: flex; align-items: center; justify-content: center; z-index: 100; pointer-events: none; }
     </style>
 </head>
 <body>
+
     <h2>✨ Laplacian Filter ✨</h2>
+    <div id="status">Wait for "START" button to appear...</div>
     
-    <button id="startBtn" onclick="startCameraJS()">TAP TO START CAMERA</button>
+    <button id="startBtn" onclick="startCameraJS()">START CAMERA</button>
     
     <video id="webcam" autoplay playsinline></video>
     <canvas id="outputCanvas"></canvas>
-    <div id="status">Status: Ready. Please tap the button.</div>
 
     <script>
         async function startCameraJS() {
@@ -29,62 +34,13 @@
             const btn = document.getElementById('startBtn');
             
             try {
-                // This is the part that was failing in Python
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" }, 
+                    video: { facingMode: "user", width: 640, height: 480 }, 
                     audio: false 
                 });
                 video.srcObject = stream;
                 btn.style.display = 'none';
-                status.innerText = "Status: Camera Connected. Loading Python Filter...";
+                status.innerText = "Python is processing your feed...";
             } catch (err) {
                 status.innerText = "Camera Error: " + err;
-            }
-        }
-    </script>
-
-    <script type="py" config='{"packages": ["opencv-python", "numpy"]}'>
-        import cv2
-        import numpy as np
-        from js import document, window, requestAnimationFrame
-        from pyodide.ffi import create_proxy
-
-        video = document.getElementById("webcam")
-        canvas = document.getElementById("outputCanvas")
-        ctx = canvas.getContext("2d")
-        status = document.getElementById("status")
-
-        def loop(time):
-            # Only process if the video is actually playing
-            if video.videoWidth > 0:
-                status.innerText = "Status: Filter Active!"
-                
-                if canvas.width != video.videoWidth:
-                    canvas.width = video.videoWidth
-                    canvas.height = video.videoHeight
-                
-                # Draw video to canvas to get pixels
-                ctx.drawImage(video, 0, 0)
-                img_data = ctx.getImageData(0, 0, canvas.width, canvas.height)
-                
-                # Convert to OpenCV format
-                frame = np.frombuffer(img_data.data, dtype=np.uint8).reshape((canvas.height, canvas.width, 4))
-                
-                # --- YOUR FILTER LOGIC ---
-                gray = cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY)
-                blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=5)
-                # -------------------------
-
-                # Convert back to show on screen
-                res = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGBA)
-                img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res.tobytes()), canvas.width, canvas.height)
-                ctx.putImageData(img_ptr, 0, 0)
-            
-            requestAnimationFrame(create_proxy(loop))
-
-        # Start the Python loop
-        loop(0)
-    </script>
-</body>
-</html>
+                console.error(
