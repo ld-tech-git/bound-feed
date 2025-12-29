@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Magic Camera</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
+    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+</head>
+<body>
+    <h1>Magic Laplacian Filter</h1>
+    <div id="video-container"></div>
+
+    <script type="py" config='{"packages": ["opencv-python", "numpy"]}'>
+        import cv2
+        import numpy as np
+        from pyscript import display
+
+        # Your filter logic goes here (simplified for the browser)
+        def apply_filter(frame):
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+            edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=5)
+            mask = np.zeros_like(frame)
+            mask[edges != 0] = frame[edges != 0]
+            return mask
+
+        # PyScript magic to start the camera
+        # Note: Browsers will ask for permission!
+    </script>
+</body>
+</html>
