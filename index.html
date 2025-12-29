@@ -3,106 +3,54 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Immersive Laplacian Filter</title>
+    <title>High-Speed Immersive Filter</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
-        /* This makes the page take up the whole screen */
-        html, body { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            background: #000; overflow: hidden; position: fixed;
-        }
-        
-        /* The Canvas covers the background like a wallpaper */
+        html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; background: #000; overflow: hidden; position: fixed; }
         canvas { 
-            position: absolute; top: 0; left: 0;
-            width: 100vw; height: 100vh;
-            object-fit: cover; /* This crops the edges slightly to fill the screen */
-            z-index: 1;
+            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
+            object-fit: cover; image-rendering: pixelated; z-index: 1;
         }
-
-        #controls { 
-            position: absolute; top: 10px; left: 10px; right: 10px;
-            background: rgba(0, 0, 0, 0.7); padding: 10px; border-radius: 10px;
-            z-index: 10; display: none; color: #0f0; font-family: monospace;
-            max-height: 80vh; overflow-y: auto;
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.9); z-index: 100; color: #0f0; font-family: monospace;
         }
-
-        .control-group { margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; }
-        label { display: block; font-size: 10px; }
-        input, select { width: 100%; margin-top: 5px; }
-
-        #ui-toggle {
-            position: absolute; bottom: 20px; right: 20px;
-            z-index: 20; background: rgba(0,255,0,0.5); color: white;
-            border: none; border-radius: 50%; width: 50px; height: 50px;
-        }
-
-        #loading { position: fixed; top: 45%; width: 100%; text-align: center; color: #0f0; z-index: 100; }
+        button { background: #0f0; color: #000; border: none; padding: 20px 40px; font-size: 1.5rem; font-weight: bold; border-radius: 50px; }
         #webcam { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="loading">Initializing Neural Matrix...</div>
-
-    <button id="ui-toggle" onclick="toggleUI()">⚙️</button>
-
-    <div id="controls">
-        <div class="control-group">
-            <button onclick="startCameraJS()" style="width:100%; background:#0f0; color:#000; font-weight:bold;">START SENSOR</button>
-        </div>
-
-        <div class="control-group">
-            <label>RESOLUTION</label>
-            <select id="resSelect">
-                <option value="240">240p (Turbo)</option>
-                <option value="480" selected>480p (Balanced)</option>
-                <option value="720">720p (Heavy)</option>
-            </select>
-        </div>
-
-        <div class="control-group">
-            <label>FPS LIMIT: <span id="fpsLimitVal">30</span></label>
-            <input type="range" id="fpsSlider" min="5" max="60" value="30">
-        </div>
-
-        <div class="control-group">
-            <label>LAPLACIAN THICKNESS: <span id="thickVal">5</span></label>
-            <input type="range" id="thickSlider" min="1" max="7" step="2" value="5">
-        </div>
-
-        <div class="control-group">
-            <label>NOISE BLUR: <span id="blurVal">5</span></label>
-            <input type="range" id="blurSlider" min="1" max="15" step="2" value="5">
-        </div>
-        <div id="fpsDisplay">FPS: --</div>
+    <div id="overlay">
+        <div id="load-status">LOADING PYTHON...</div>
+        <button id="startBtn" onclick="launchApp()" style="display:none;">START IMMERSIVE FEED</button>
     </div>
 
     <video id="webcam" autoplay playsinline></video>
     <canvas id="outputCanvas"></canvas>
 
     <script>
-        function toggleUI() {
-            const ctrl = document.getElementById('controls');
-            ctrl.style.display = (ctrl.style.display === 'none') ? 'block' : 'none';
+        function launchApp() {
+            const doc = document.documentElement;
+            if (doc.requestFullscreen) doc.requestFullscreen();
+            document.getElementById('overlay').style.display = 'none';
+            startCamera();
         }
 
-        async function startCameraJS() {
+        async function startCamera() {
             const video = document.getElementById('webcam');
-            const res = document.getElementById('resSelect').value;
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { height: {ideal: parseInt(res)}, facingMode: "user" }, 
-                    audio: false 
-                });
-                video.srcObject = stream;
-            } catch (err) { alert(err); }
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: {ideal: 1920}, height: {ideal: 1080}, facingMode: "user" }, 
+                audio: false 
+            });
+            video.srcObject = stream;
         }
 
         function pythonReady() {
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('controls').style.display = 'block';
+            document.getElementById('load-status').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'block';
         }
     </script>
 
@@ -114,72 +62,48 @@
         from pyodide.ffi import create_proxy
 
         pythonReady()
-
         video = document.getElementById("webcam")
         canvas = document.getElementById("outputCanvas")
         ctx = canvas.getContext("2d")
-        
-        fps_slider = document.getElementById("fpsSlider")
-        blur_slider = document.getElementById("blurSlider")
-        thick_slider = document.getElementById("thickSlider")
-
-        last_frame_time = 0
-        frames = 0
-        fps_timer = time.time()
 
         def loop(t):
-            global last_frame_time, frames, fps_timer
-            
-            target_fps = int(fps_slider.value)
-            document.getElementById("fpsLimitVal").innerText = target_fps
-            
-            current_time = time.time()
-            if (current_time - last_frame_time) < (1.0 / target_fps):
-                requestAnimationFrame(create_proxy(loop))
-                return
-
-            last_frame_time = current_time
-
             if video.videoWidth > 0:
-                if canvas.width != video.videoWidth:
-                    canvas.width = video.videoWidth
-                    canvas.height = video.videoHeight
+                # --- SPEED HACK: INTERNAL DOWNSCALE ---
+                # We calculate math on 360p even if input is 1080p
+                proc_w = 480 
+                proc_h = int(video.videoHeight * (proc_w / video.videoWidth))
                 
-                ctx.drawImage(video, 0, 0)
-                img_data = ctx.getImageData(0, 0, canvas.width, canvas.height)
+                if canvas.width != proc_w:
+                    canvas.width = proc_w
+                    canvas.height = proc_h
                 
-                pixel_data = img_data.data.to_py()
-                frame = np.frombuffer(pixel_data, dtype=np.uint8).reshape((canvas.height, canvas.width, 4))
+                ctx.drawImage(video, 0, 0, proc_w, proc_h)
+                img_data = ctx.getImageData(0, 0, proc_w, proc_h)
                 
-                # Full Mirror for Selfie
+                # Fast bridge
+                frame = np.frombuffer(img_data.data.to_py(), dtype=np.uint8).reshape((proc_h, proc_w, 4))
                 frame = cv2.flip(frame, 1)
 
+                # --- OPTIMIZED PROCESSING ---
                 bgr = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
-                
-                # Logic: Gray -> Blur -> Laplacian -> Thresh -> Mask
-                b_size = int(blur_slider.value)
-                document.getElementById("blurVal").innerText = b_size
                 gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-                blurred = cv2.GaussianBlur(gray, (b_size, b_size), 0)
                 
-                k_size = int(thick_slider.value)
-                document.getElementById("thickVal").innerText = k_size
-                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=k_size)
+                # Fast Blur (smaller kernel = faster)
+                blurred = cv2.medianBlur(gray, 3) 
                 
-                _, thresh = cv2.threshold(edges, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-                mask = np.zeros_like(bgr)
-                mask[thresh != 0] = bgr[thresh != 0]
+                # Fast Laplacian
+                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=3)
+                
+                # Thresholding
+                _, thresh = cv2.threshold(edges, 40, 255, cv2.THRESH_BINARY)
+                
+                # Bitwise Mask (Much faster than full NumPy indexing)
+                mask = cv2.bitwise_and(bgr, bgr, mask=thresh)
 
+                # Return to screen
                 res_rgba = cv2.cvtColor(mask, cv2.COLOR_BGR2RGBA)
-                img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res_rgba.tobytes()), canvas.width, canvas.height)
+                img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res_rgba.tobytes()), proc_w, proc_h)
                 ctx.putImageData(img_ptr, 0, 0)
-
-                # FPS Counter
-                frames += 1
-                if time.time() - fps_timer > 1:
-                    document.getElementById("fpsDisplay").innerText = f"FPS: {frames}"
-                    frames = 0
-                    fps_timer = time.time()
 
             requestAnimationFrame(create_proxy(loop))
 
