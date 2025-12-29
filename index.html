@@ -2,37 +2,51 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>Universal Magic Camera</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Magic Camera - Final Fix</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
-        body { background: #000; color: #0f0; font-family: sans-serif; text-align: center; margin: 0; overflow: hidden; }
-        #container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        canvas { max-width: 100%; max-height: 80vh; border: 1px solid #444; background: #111; }
+        body { background: #111; color: #0f0; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
+        canvas { width: 100%; max-width: 500px; border: 2px solid #333; border-radius: 10px; }
         #webcam { display: none; }
-        .controls { position: absolute; bottom: 30px; z-index: 10; }
-        button { background: #00ff00; color: black; border: none; padding: 15px 40px; font-size: 1.2rem; border-radius: 50px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,255,0,0.3); cursor: pointer; }
-        #status { font-size: 12px; margin-top: 10px; color: #888; }
+        #startBtn { background: #00ff00; color: black; border: none; padding: 15px 30px; font-size: 18px; border-radius: 5px; font-weight: bold; margin: 20px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="container">
-        <h2>Laplacian View</h2>
-        
-        <video id="webcam" autoplay playsinline></video>
-        <canvas id="outputCanvas"></canvas>
-        
-        <div class="controls">
-            <button id="startBtn">START CAMERA</button>
-            <div id="status">Compatible with Laptop & Mobile</div>
-        </div>
-    </div>
+    <h2>✨ Laplacian Filter ✨</h2>
+    
+    <button id="startBtn" onclick="startCameraJS()">TAP TO START CAMERA</button>
+    
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="outputCanvas"></canvas>
+    <div id="status">Status: Ready. Please tap the button.</div>
+
+    <script>
+        async function startCameraJS() {
+            const video = document.getElementById('webcam');
+            const status = document.getElementById('status');
+            const btn = document.getElementById('startBtn');
+            
+            try {
+                // This is the part that was failing in Python
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" }, 
+                    audio: false 
+                });
+                video.srcObject = stream;
+                btn.style.display = 'none';
+                status.innerText = "Status: Camera Connected. Loading Python Filter...";
+            } catch (err) {
+                status.innerText = "Camera Error: " + err;
+            }
+        }
+    </script>
 
     <script type="py" config='{"packages": ["opencv-python", "numpy"]}'>
         import cv2
         import numpy as np
-        from js import document, window, requestAnimationFrame, Object
+        from js import document, window, requestAnimationFrame
         from pyodide.ffi import create_proxy
 
         video = document.getElementById("webcam")
@@ -40,59 +54,37 @@
         ctx = canvas.getContext("2d")
         status = document.getElementById("status")
 
-        async def run_camera(event):
-            document.getElementById("startBtn").style.display = "none"
-            status.innerText = "Initializing Hardware..."
-            
-            try:
-                # This config works for both laptop webcams and phone cameras
-                constraints = Object.fromEntries([
-                    ["video", Object.fromEntries([
-                        ["width", Object.fromEntries([["ideal", 640]])],
-                        ["height", Object.fromEntries([["ideal", 480]])],
-                        ["facingMode", "user"] 
-                    ])],
-                    ["audio", False]
-                ])
+        def loop(time):
+            # Only process if the video is actually playing
+            if video.videoWidth > 0:
+                status.innerText = "Status: Filter Active!"
                 
-                stream = await window.navigator.mediaDevices.getUserMedia(constraints)
-                video.srcObject = stream
-                status.innerText = "System Live"
+                if canvas.width != video.videoWidth:
+                    canvas.width = video.videoWidth
+                    canvas.height = video.videoHeight
                 
-                def loop(time):
-                    if video.videoWidth > 0:
-                        # Match canvas to video size dynamically
-                        if canvas.width != video.videoWidth:
-                            canvas.width = video.videoWidth
-                            canvas.height = video.videoHeight
-                        
-                        # 1. Capture from Webcam
-                        ctx.drawImage(video, 0, 0)
-                        raw_data = ctx.getImageData(0, 0, canvas.width, canvas.height)
-                        
-                        # 2. Process with Python/OpenCV
-                        frame = np.frombuffer(raw_data.data, dtype=np.uint8).reshape((canvas.height, canvas.width, 4))
-                        
-                        # Apply your logic
-                        gray = cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY)
-                        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-                        edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=5)
-                        
-                        # 3. Create Mask (Edges only)
-                        res = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGBA)
-                        
-                        # 4. Output to Screen
-                        img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res.tobytes()), canvas.width, canvas.height)
-                        ctx.putImageData(img_ptr, 0, 0)
-                    
-                    requestAnimationFrame(create_proxy(loop))
+                # Draw video to canvas to get pixels
+                ctx.drawImage(video, 0, 0)
+                img_data = ctx.getImageData(0, 0, canvas.width, canvas.height)
                 
-                loop(0)
-            except Exception as e:
-                status.innerText = f"Error: {str(e)}"
+                # Convert to OpenCV format
+                frame = np.frombuffer(img_data.data, dtype=np.uint8).reshape((canvas.height, canvas.width, 4))
+                
+                # --- YOUR FILTER LOGIC ---
+                gray = cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY)
+                blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=5)
+                # -------------------------
 
-        start_proxy = create_proxy(run_camera)
-        document.getElementById("startBtn").addEventListener("click", start_proxy)
+                # Convert back to show on screen
+                res = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGBA)
+                img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res.tobytes()), canvas.width, canvas.height)
+                ctx.putImageData(img_ptr, 0, 0)
+            
+            requestAnimationFrame(create_proxy(loop))
+
+        # Start the Python loop
+        loop(0)
     </script>
 </body>
 </html>
