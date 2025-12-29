@@ -3,67 +3,75 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Magic Camera - Final Fix</title>
+    <title>Pro Filter App</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
-        body { background: #111; color: #0f0; font-family: monospace; text-align: center; margin: 0; padding: 20px; }
-        canvas { width: 100%; max-width: 500px; border: 2px solid #444; background: #000; display: none; }
-        #startBtn { background: #00ff00; color: black; border: none; padding: 20px; font-size: 1.2rem; font-weight: bold; cursor: pointer; display: none; width: 100%; max-width: 300px; }
-        #loading-msg { color: white; font-size: 1.2rem; }
+        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; text-align: center; }
+        #controls { background: #222; padding: 15px; border-bottom: 2px solid #0f0; display: none; }
+        select, button { padding: 10px; margin: 5px; border-radius: 5px; font-weight: bold; }
+        canvas { width: 100%; max-width: 800px; margin-top: 10px; border: 1px solid #333; }
+        #loading { padding: 50px; font-size: 1.5rem; color: #0f0; }
         #webcam { display: none; }
     </style>
 </head>
 <body>
-    <h2>LAPLACIAN FILTER</h2>
-    
-    <div id="loading-msg">📥 Downloading Python Engine...<br>(This takes 30-60 seconds)</div>
-    
-    <button id="startBtn" onclick="startCameraJS()">START CAMERA</button>
-    
+
+    <div id="loading">⌛ Loading Python & OpenCV...</div>
+
+    <div id="controls">
+        <strong>⚙️ SETTINGS:</strong>
+        <select id="resSelect">
+            <option value="320">360p (Smooth/Fast)</option>
+            <option value="640" selected>480p (Standard)</option>
+            <option value="1280">720p (Slow/High Quality)</option>
+        </select>
+        <button id="startBtn" onclick="startCameraJS()" style="background:#0f0">▶ START CAMERA</button>
+        <div id="fps" style="font-size: 12px; color: #888; margin-top: 5px;">FPS: 0</div>
+    </div>
+
     <video id="webcam" autoplay playsinline></video>
     <canvas id="outputCanvas"></canvas>
 
     <script>
-        // JS handles the hardware
         async function startCameraJS() {
             const video = document.getElementById('webcam');
-            const btn = document.getElementById('startBtn');
-            const canvas = document.getElementById('outputCanvas');
+            const res = document.getElementById('resSelect').value;
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" }, 
+                    video: { width: parseInt(res), facingMode: "user" }, 
                     audio: false 
                 });
                 video.srcObject = stream;
-                btn.style.display = 'none';
-                canvas.style.display = 'inline-block';
-            } catch (err) {
-                alert("Camera Error: " + err);
-            }
+                document.getElementById('startBtn').innerText = "🔄 UPDATE RESOLUTION";
+            } catch (err) { alert("Error: " + err); }
         }
 
-        // This function shows the button only when Python is ready
-        function showStartButton() {
-            document.getElementById('loading-msg').style.display = 'none';
-            document.getElementById('startBtn').style.display = 'inline-block';
+        function pythonReady() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('controls').style.display = 'block';
         }
     </script>
 
     <script type="py" config='{"packages": ["opencv-python", "numpy"]}'>
         import cv2
         import numpy as np
-        from js import document, window, requestAnimationFrame, showStartButton
+        import time
+        from js import document, window, requestAnimationFrame, pythonReady
         from pyodide.ffi import create_proxy
 
-        # Tell JS that Python is ready
-        showStartButton()
+        pythonReady()
 
         video = document.getElementById("webcam")
         canvas = document.getElementById("outputCanvas")
         ctx = canvas.getContext("2d")
+        fps_display = document.getElementById("fps")
+        
+        last_time = time.time()
+        frames = 0
 
-        def loop(time):
+        def loop(t):
+            global last_time, frames
             if video.videoWidth > 0:
                 if canvas.width != video.videoWidth:
                     canvas.width = video.videoWidth
@@ -72,21 +80,37 @@
                 ctx.drawImage(video, 0, 0)
                 img_data = ctx.getImageData(0, 0, canvas.width, canvas.height)
                 
-                # Convert JS Proxy to Python Bytes
+                # Buffer fix
                 pixel_data = img_data.data.to_py()
                 frame = np.frombuffer(pixel_data, dtype=np.uint8).reshape((canvas.height, canvas.width, 4))
                 
-                # LAPLACIAN FILTER
-                gray = cv2.cvtColor(frame, cv2.COLOR_RGBA2GRAY)
-                edges = cv2.Laplacian(gray, cv2.CV_8U, ksize=3)
+                # --- YOUR ORIGINAL LOGIC (Optimized for Web) ---
+                # Convert RGBA to BGR
+                bgr = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
+                gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
+                blurred = cv2.GaussianBlur(gray, (5, 5), 0)
                 
-                # Convert back to RGBA
-                res = cv2.cvtColor(edges, cv2.COLOR_GRAY2RGBA)
+                # Laplacian
+                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=5)
+                _, thresh = cv2.threshold(edges, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                 
-                # Send back to Canvas
-                img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res.tobytes()), canvas.width, canvas.height)
+                # Apply the color mask
+                mask = np.zeros_like(bgr)
+                mask[thresh != 0] = bgr[thresh != 0]
+                # -----------------------------------------------
+
+                # Convert back to browser-friendly RGBA
+                res_rgba = cv2.cvtColor(mask, cv2.COLOR_BGR2RGBA)
+                img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res_rgba.tobytes()), canvas.width, canvas.height)
                 ctx.putImageData(img_ptr, 0, 0)
-            
+
+                # FPS Counter
+                frames += 1
+                if time.time() - last_time > 1:
+                    fps_display.innerText = f"FPS: {frames}"
+                    frames = 0
+                    last_time = time.time()
+
             requestAnimationFrame(create_proxy(loop))
 
         loop(0)
