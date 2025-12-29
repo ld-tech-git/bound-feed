@@ -1,30 +1,79 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My Magic Camera</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Magic Camera Filter</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #222; color: white; }
+        #outputCanvas { border: 2px solid #00ff00; width: 90%; max-width: 500px; }
+        video { display: none; } /* We hide the raw video and show only the filtered one */
+    </style>
 </head>
 <body>
-    <h1>Magic Laplacian Filter</h1>
-    <div id="video-container"></div>
+    <h2>✨ Magic Laplacian Filter ✨</h2>
+    <p id="status">Loading Python... please wait...</p>
+    
+    <video id="webcam" autoplay playsinline></video>
+    
+    <canvas id="outputCanvas"></canvas>
 
     <script type="py" config='{"packages": ["opencv-python", "numpy"]}'>
         import cv2
         import numpy as np
-        from pyscript import display
+        from pyodide.ffi import create_proxy
+        from js import document, window, requestAnimationFrame
 
-        # Your filter logic goes here (simplified for the browser)
-        def apply_filter(frame):
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        video = document.getElementById("webcam")
+        canvas = document.getElementById("outputCanvas")
+        context = canvas.getContext("2d")
+        status = document.getElementById("status")
+
+        def process_frame(time):
+            # 1. Setup canvas size if not done
+            if canvas.width != video.videoWidth:
+                canvas.width = video.videoWidth
+                canvas.height = video.videoHeight
+            
+            # 2. Grab current frame from video
+            context.drawImage(video, 0, 0, canvas.width, canvas.height)
+            img_data = context.getImageData(0, 0, canvas.width, canvas.height)
+            
+            # 3. Convert to a format Python/OpenCV understands
+            frame = np.frombuffer(img_data.data, dtype=np.uint8).reshape((canvas.height, canvas.width, 4))
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
+
+            # 4. APPLY YOUR LAPLACIAN FILTER
+            gray = cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY)
             blurred = cv2.GaussianBlur(gray, (5, 5), 0)
             edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=5)
+            _, thresholded = cv2.threshold(edges, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            
             mask = np.zeros_like(frame)
-            mask[edges != 0] = frame[edges != 0]
-            return mask
+            mask[thresholded != 0] = frame[thresholded != 0]
 
-        # PyScript magic to start the camera
-        # Note: Browsers will ask for permission!
+            # 5. Send it back to the screen
+            out_data = cv2.cvtColor(mask, cv2.COLOR_RGB2RGBA)
+            img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(out_data.tobytes()), canvas.width, canvas.height)
+            context.putImageData(img_ptr, 0, 0)
+
+            # Keep the loop going
+            requestAnimationFrame(create_proxy(process_frame))
+
+        async def start_camera():
+            try:
+                # Tell the browser to turn on camera
+                stream = await window.navigator.mediaDevices.getUserMedia({"video": True})
+                video.srcObject = stream
+                status.innerHTML = "Filter is RUNNING!"
+                process_frame(0)
+            except Exception as e:
+                status.innerHTML = "Camera error: " + str(e)
+
+        import asyncio
+        asyncio.ensure_future(start_camera())
     </script>
 </body>
 </html>
