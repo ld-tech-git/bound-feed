@@ -3,55 +3,112 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>High-Speed Immersive Filter</title>
+    <title>Laplacian Pro Dashboard</title>
     <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
     <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
     <style>
-        html, body { margin: 0; padding: 0; width: 100vw; height: 100vh; background: #000; overflow: hidden; position: fixed; }
-        canvas { 
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            object-fit: cover; image-rendering: pixelated; z-index: 1;
-        }
-        #overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: 'Courier New', monospace; overflow: hidden; }
+        
+        /* Dashboard Overlay */
+        #launcher {
+            position: fixed; inset: 0; background: #0a0a0a; z-index: 1000;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.9); z-index: 100; color: #0f0; font-family: monospace;
+            padding: 20px; text-align: left;
         }
-        button { background: #0f0; color: #000; border: none; padding: 20px 40px; font-size: 1.5rem; font-weight: bold; border-radius: 50px; }
+
+        .config-box { background: #1a1a1a; padding: 25px; border: 1px solid #0f0; border-radius: 15px; width: 90%; max-width: 400px; box-shadow: 0 0 20px rgba(0,255,0,0.2); }
+        
+        .option { margin-bottom: 20px; }
+        label { display: block; font-size: 12px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+        select, input { width: 100%; background: #000; color: #0f0; border: 1px solid #0f0; padding: 10px; border-radius: 5px; }
+
+        #startBtn { 
+            width: 100%; background: #0f0; color: #000; border: none; padding: 18px; 
+            font-size: 1.2rem; font-weight: bold; cursor: pointer; border-radius: 10px; margin-top: 10px;
+        }
+
+        #startBtn:disabled { background: #050; color: #555; cursor: wait; }
+
+        /* Fullscreen View */
+        canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; image-rendering: pixelated; z-index: 1; display: none; }
         #webcam { display: none; }
+        #exit-hint { position: fixed; bottom: 10px; width: 100%; text-align: center; color: rgba(0,255,0,0.3); font-size: 10px; z-index: 10; pointer-events: none; display: none; }
     </style>
 </head>
 <body>
 
-    <div id="overlay">
-        <div id="load-status">LOADING PYTHON...</div>
-        <button id="startBtn" onclick="launchApp()" style="display:none;">START IMMERSIVE FEED</button>
+    <div id="launcher">
+        <h2 style="margin-bottom: 5px;">SYSTEM CONFIG</h2>
+        <p id="loading-status" style="margin-bottom: 20px; font-size: 10px; color: #888;">DOWNLOAD PIXELS...</p>
+        
+        <div class="config-box">
+            <div class="option">
+                <label>Input Quality (Camera)</label>
+                <select id="cameraRes">
+                    <option value="1920">1080p (True HD)</option>
+                    <option value="1280">720p (High)</option>
+                    <option value="640" selected>480p (Fast)</option>
+                </select>
+            </div>
+
+            <div class="option">
+                <label>Processing Scale (Smoothness)</label>
+                <select id="procScale">
+                    <option value="160">Turbo (Highest FPS)</option>
+                    <option value="320" selected>Balanced (Standard)</option>
+                    <option value="480">Quality (Lower FPS)</option>
+                </select>
+            </div>
+
+            <div class="option">
+                <label>Edge Thickness</label>
+                <input type="range" id="thick" min="1" max="7" step="2" value="3">
+            </div>
+
+            <button id="startBtn" disabled onclick="goLive()">BOOT SYSTEM</button>
+        </div>
     </div>
 
+    <div id="exit-hint">DOUBLE TAP TO EXIT FULLSCREEN</div>
     <video id="webcam" autoplay playsinline></video>
     <canvas id="outputCanvas"></canvas>
 
     <script>
-        function launchApp() {
+        // Global Settings to be read by Python
+        window.CONFIG = { camW: 640, procW: 320, k: 3 };
+
+        async function goLive() {
+            window.CONFIG.camW = parseInt(document.getElementById('cameraRes').value);
+            window.CONFIG.procW = parseInt(document.getElementById('procScale').value);
+            window.CONFIG.k = parseInt(document.getElementById('thick').value);
+
+            // Trigger Fullscreen
             const doc = document.documentElement;
             if (doc.requestFullscreen) doc.requestFullscreen();
-            document.getElementById('overlay').style.display = 'none';
-            startCamera();
-        }
+            else if (doc.webkitRequestFullscreen) doc.webkitRequestFullscreen();
 
-        async function startCamera() {
+            document.getElementById('launcher').style.display = 'none';
+            document.getElementById('outputCanvas').style.display = 'block';
+            document.getElementById('exit-hint').style.display = 'block';
+
+            // Start Camera
             const video = document.getElementById('webcam');
             const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { width: {ideal: 1920}, height: {ideal: 1080}, facingMode: "user" }, 
+                video: { width: {ideal: window.CONFIG.camW}, facingMode: "user" }, 
                 audio: false 
             });
             video.srcObject = stream;
         }
 
         function pythonReady() {
-            document.getElementById('load-status').style.display = 'none';
-            document.getElementById('startBtn').style.display = 'block';
+            document.getElementById('loading-status').innerText = "CORE ENGINE LOADED";
+            document.getElementById('startBtn').disabled = false;
         }
+
+        // Exit fullscreen on double tap
+        window.addEventListener('dblclick', () => {
+            if (document.fullscreenElement) document.exitFullscreen();
+        });
     </script>
 
     <script type="py" config='{"packages": ["opencv-python", "numpy"]}'>
@@ -62,47 +119,42 @@
         from pyodide.ffi import create_proxy
 
         pythonReady()
+
         video = document.getElementById("webcam")
         canvas = document.getElementById("outputCanvas")
         ctx = canvas.getContext("2d")
 
         def loop(t):
             if video.videoWidth > 0:
-                # --- SPEED HACK: INTERNAL DOWNSCALE ---
-                # We calculate math on 360p even if input is 1080p
-                proc_w = 480 
-                proc_h = int(video.videoHeight * (proc_w / video.videoWidth))
+                # Use settings from the Dashboard
+                target_w = window.CONFIG.procW
+                target_h = int(video.videoHeight * (target_w / video.videoWidth))
                 
-                if canvas.width != proc_w:
-                    canvas.width = proc_w
-                    canvas.height = proc_h
+                if canvas.width != target_w:
+                    canvas.width = target_w
+                    canvas.height = target_h
                 
-                ctx.drawImage(video, 0, 0, proc_w, proc_h)
-                img_data = ctx.getImageData(0, 0, proc_w, proc_h)
+                # Draw small to save CPU
+                ctx.drawImage(video, 0, 0, target_w, target_h)
+                img_data = ctx.getImageData(0, 0, target_w, target_h)
                 
-                # Fast bridge
-                frame = np.frombuffer(img_data.data.to_py(), dtype=np.uint8).reshape((proc_h, proc_w, 4))
+                # Fast processing
+                frame = np.frombuffer(img_data.data.to_py(), dtype=np.uint8).reshape((target_h, target_w, 4))
                 frame = cv2.flip(frame, 1)
 
-                # --- OPTIMIZED PROCESSING ---
+                # Core Logic
                 bgr = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
                 gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-                
-                # Fast Blur (smaller kernel = faster)
                 blurred = cv2.medianBlur(gray, 3) 
                 
-                # Fast Laplacian
-                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=3)
-                
-                # Thresholding
+                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=window.CONFIG.k)
                 _, thresh = cv2.threshold(edges, 40, 255, cv2.THRESH_BINARY)
                 
-                # Bitwise Mask (Much faster than full NumPy indexing)
+                # Speed hack: bitwise_and for color masking
                 mask = cv2.bitwise_and(bgr, bgr, mask=thresh)
 
-                # Return to screen
                 res_rgba = cv2.cvtColor(mask, cv2.COLOR_BGR2RGBA)
-                img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res_rgba.tobytes()), proc_w, proc_h)
+                img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res_rgba.tobytes()), target_w, target_h)
                 ctx.putImageData(img_ptr, 0, 0)
 
             requestAnimationFrame(create_proxy(loop))
