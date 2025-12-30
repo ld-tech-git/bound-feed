@@ -16,17 +16,26 @@ onmessage = function(e) {
     let edges = new cv.Mat();
 
     if (panel === 'A') {
-        // PANEL A: Gaussian + Normalize + Otsu (Modern Smooth)
+        // PANEL A: Gaussian + Normalize + Otsu
         cv.normalize(gray, gray, 0, 255, cv.NORM_MINMAX);
-        let ksize = new cv.Size(blur, blur);
-        cv.GaussianBlur(gray, blurred, ksize, 0);
+        if (blur > 1) {
+            let ksize = new cv.Size(blur, blur);
+            cv.GaussianBlur(gray, blurred, ksize, 0);
+        } else {
+            gray.copyTo(blurred);
+        }
         cv.Laplacian(blurred, edges, cv.CV_8U, k);
-        
         let otsuVal = cv.threshold(edges, new cv.Mat(), 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
         cv.threshold(edges, edges, otsuVal * sense, 255, cv.THRESH_BINARY);
     } else {
-        // PANEL B: Median + Fixed (Classic Harsh)
-        cv.medianBlur(gray, blurred, blur);
+        // PANEL B: Median + Fixed
+        if (blur > 1) {
+            // Median blur kernel must be odd
+            let b = blur % 2 === 0 ? blur + 1 : blur;
+            cv.medianBlur(gray, blurred, b);
+        } else {
+            gray.copyTo(blurred);
+        }
         cv.Laplacian(blurred, edges, cv.CV_8U, k);
         cv.threshold(edges, edges, sense, 255, cv.THRESH_BINARY);
     }
@@ -37,6 +46,6 @@ onmessage = function(e) {
     const output = new ImageData(new Uint8ClampedArray(mask.data), mask.cols, mask.rows);
     postMessage(output, [output.data.buffer]);
 
-    // Cleanup
+    // Memory Cleanup
     src.delete(); gray.delete(); blurred.delete(); edges.delete(); mask.delete();
 };
