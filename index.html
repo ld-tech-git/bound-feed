@@ -3,187 +3,148 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro: Master Control</title>
-    <link rel="stylesheet" href="https://pyscript.net/releases/2024.1.1/core.css">
-    <script type="module" src="https://pyscript.net/releases/2024.1.1/core.js"></script>
+    <title>Laplacian Pro: Clean Feed</title>
     <style>
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; position: fixed; }
-        
-        #launcher { 
-            position: fixed; inset: 0; background: #000; z-index: 100; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; }
+        #dashboard { 
+            position: fixed; inset: 0; z-index: 100; background: #000;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
         }
-
-        .config-box { border: 1px solid #0f0; padding: 25px; background: #0a0a0a; width: 85%; max-width: 350px; border-radius: 10px; }
-        
-        .option-group { margin-bottom: 20px; text-align: left; }
-        label { font-size: 10px; text-transform: uppercase; color: #888; display: block; margin-bottom: 8px; }
-
-        select, button { 
-            width: 100%; padding: 15px; background: #000; color: #0f0; 
-            border: 1px solid #0f0; font-family: monospace; font-size: 1rem;
-        }
-
-        button:enabled { cursor: pointer; font-weight: bold; margin-top: 10px; background: rgba(0,255,0,0.05); }
-        button:active { background: #0f0; color: #000; }
-
-        canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 1; display: none; image-rendering: pixelated; }
-        
-        #fps-tag {
-            position: fixed; top: 15px; right: 15px; background: rgba(0,0,0,0.6);
-            color: #0f0; font-family: monospace; padding: 5px 10px; border-radius: 5px;
-            z-index: 50; display: none; pointer-events: none; border: 1px solid rgba(0,255,0,0.2);
-        }
-
+        .box { border: 1px solid #0f0; padding: 25px; border-radius: 10px; background: #0a0a0a; width: 300px; text-align: center; }
+        select, button { width: 100%; padding: 12px; margin: 8px 0; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; font-size: 1rem; }
+        #fps-tag { position: fixed; top: 15px; right: 15px; z-index: 50; font-size: 14px; background: rgba(0,0,0,0.6); padding: 8px; border-radius: 4px; display: none; pointer-events: none; border: 1px solid rgba(0,255,0,0.3); }
+        #timer { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; z-index: 60; display: none; color: #fff; font-weight: bold; text-shadow: 0 0 20px #0f0; }
+        canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 1; }
         #webcam { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="launcher">
-        <div class="config-box">
-            <h3 style="margin: 0 0 25px 0; text-align: center; letter-spacing: 2px;">SYSTEM CONFIG</h3>
-            
-            <div class="option-group">
-                <label>1. Camera Resolution</label>
-                <select id="camRes">
-                    <option value="1920">1080p (Highest Detail)</option>
-                    <option value="1280" selected>720p (Recommended)</option>
-                    <option value="640">480p (Speed Focus)</option>
-                </select>
-            </div>
-
-            <div class="option-group">
-                <label>2. Processing Chunking</label>
-                <select id="chunkScale">
-                    <option value="1">1x (Sharpest)</option>
-                    <option value="1.5" selected>1.5x (Balanced)</option>
-                    <option value="2">2x (Smoothest)</option>
-                </select>
-            </div>
-
-            <div class="option-group">
-                <label>3. Target FPS</label>
-                <select id="fpsGoal">
-                    <option value="15">15 FPS (Stable)</option>
-                    <option value="24" selected>24 FPS (Cinema)</option>
-                    <option value="30">30 FPS (High Performance)</option>
-                </select>
-            </div>
-
-            <button id="startBtn" disabled onclick="goLive()">BOOT IMMERSIVE FEED</button>
-            <div id="status" style="font-size: 10px; margin-top: 20px; text-align: center; opacity: 0.6;">[ LOADING PY-ENGINE ]</div>
+    <div id="dashboard">
+        <div class="box">
+            <h3 style="margin-top:0">SYSTEM SETUP</h3>
+            <label>INPUT RESOLUTION</label>
+            <select id="resSelect">
+                <option value="1920">1080p (True HD)</option>
+                <option value="1280" selected>720p (Balanced)</option>
+                <option value="640">480p (Speed Focus)</option>
+            </select>
+            <label>TARGET FPS</label>
+            <select id="fpsSelect">
+                <option value="15">15 FPS (Stable)</option>
+                <option value="24" selected>24 FPS (Cinema)</option>
+                <option value="30">30 FPS (Fluid)</option>
+            </select>
+            <button onclick="bootApp()">BOOT FULLSCREEN</button>
         </div>
     </div>
 
     <div id="fps-tag">FPS: --</div>
+    <div id="timer">7</div>
     <video id="webcam" autoplay playsinline></video>
     <canvas id="outputCanvas"></canvas>
 
     <script>
-        window.CONFIG = { camW: 1280, chunk: 1.5, fps: 24 };
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('outputCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const timerEl = document.getElementById('timer');
+        const fpsTag = document.getElementById('fps-tag');
+        
+        let worker, targetFPS, isProcessing = false;
+        let frames = 0, lastTime = performance.now(), lastFrameTime = 0;
 
-        async function goLive() {
-            window.CONFIG.camW = parseInt(document.getElementById('camRes').value);
-            window.CONFIG.chunk = parseFloat(document.getElementById('chunkScale').value);
-            window.CONFIG.fps = parseInt(document.getElementById('fpsGoal').value);
+        async function bootApp() {
+            const width = parseInt(document.getElementById('resSelect').value);
+            targetFPS = parseInt(document.getElementById('fpsSelect').value);
             
-            const doc = document.documentElement;
-            if (doc.requestFullscreen) await doc.requestFullscreen().catch(()=>{});
+            if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+            if (screen.orientation?.lock) await screen.orientation.lock('landscape').catch(()=>{});
+
+            document.getElementById('dashboard').style.display = 'none';
+            canvas.style.display = 'block';
+            fpsTag.style.display = 'block'; // Initially show it
+
+            worker = new Worker('worker.js');
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: { ideal: width }, facingMode: "user" }, audio: false 
+            });
+            video.srcObject = stream;
+
+            video.onloadedmetadata = () => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                requestAnimationFrame(processFrame);
+            };
+
+            worker.onmessage = (e) => {
+                ctx.putImageData(e.data, 0, 0);
+                isProcessing = false;
+                frames++;
+                const now = performance.now();
+                if (now - lastTime >= 1000) {
+                    fpsTag.innerText = `FPS: ${frames}`;
+                    frames = 0; lastTime = now;
+                }
+            };
+        }
+
+        function processFrame() {
+            const now = performance.now();
+            const interval = 1000 / targetFPS;
             
-            if (screen.orientation && screen.orientation.lock) {
-                await screen.orientation.lock('landscape').catch(()=>{});
+            if (now - lastFrameTime >= interval && !isProcessing) {
+                isProcessing = true;
+                lastFrameTime = now;
+                ctx.drawImage(video, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                // Zero-copy transfer of buffer to worker
+                worker.postMessage(imageData, [imageData.data.buffer]);
             }
-
-            document.getElementById('launcher').style.display = 'none';
-            document.getElementById('outputCanvas').style.display = 'block';
-            document.getElementById('fps-tag').style.display = 'block';
-
-            const video = document.getElementById('webcam');
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: { ideal: window.CONFIG.camW }, facingMode: "user" }, 
-                    audio: false 
-                });
-                video.srcObject = stream;
-            } catch (e) { alert("Camera Error: " + e); }
+            requestAnimationFrame(processFrame);
         }
 
-        function pythonReady() {
-            document.getElementById('status').innerText = "[ ENGINE READY ]";
-            document.getElementById('startBtn').disabled = false;
+        // --- GESTURE LOGIC ---
+        let tapCount = 0;
+        let tapTimer;
+
+        window.addEventListener('touchstart', (e) => {
+            tapCount++;
+            clearTimeout(tapTimer);
+            tapTimer = setTimeout(() => {
+                if (tapCount === 2) {
+                    // Double Tap: Toggle FPS Visibility
+                    fpsTag.style.display = fpsTag.style.display === 'none' ? 'block' : 'none';
+                }
+                if (tapCount === 3) {
+                    // Triple Tap: Snapshot countdown
+                    startSnapshot();
+                }
+                tapCount = 0;
+            }, 350); 
+        });
+
+        function startSnapshot() {
+            let count = 7;
+            timerEl.style.display = 'block';
+            timerEl.innerText = count;
+            const countdown = setInterval(() => {
+                count--;
+                timerEl.innerText = count;
+                if (count === 0) {
+                    clearInterval(countdown);
+                    timerEl.style.display = 'none';
+                    saveImage();
+                }
+            }, 1000);
         }
-    </script>
 
-    <script type="py" config='{"packages": ["opencv-python", "numpy"]}'>
-        import cv2
-        import numpy as np
-        import time
-        from js import document, window, requestAnimationFrame, pythonReady
-        from pyodide.ffi import create_proxy
-
-        pythonReady()
-        video = document.getElementById("webcam")
-        canvas = document.getElementById("outputCanvas")
-        ctx = canvas.getContext("2d")
-
-        last_frame_time = 0
-        fps_start_time = time.time()
-        fps_counter = 0
-
-        def loop(t):
-            global last_frame_time, fps_start_time, fps_counter
-            
-            if video.videoWidth > 0:
-                # 1. FPS Limiter
-                interval = 1.0 / window.CONFIG.fps
-                current_time = time.time()
-                if (current_time - last_frame_time) < interval:
-                    requestAnimationFrame(create_proxy(loop))
-                    return
-                last_frame_time = current_time
-
-                # 2. Resizing for Chunking
-                chunk = window.CONFIG.chunk
-                proc_w = int(video.videoWidth / chunk)
-                proc_h = int(video.videoHeight / chunk)
-                
-                if canvas.width != proc_w:
-                    canvas.width = proc_w
-                    canvas.height = proc_h
-                
-                ctx.drawImage(video, 0, 0, proc_w, proc_h)
-                img_data = ctx.getImageData(0, 0, proc_w, proc_h)
-                
-                # 3. Laplacian Logic (UNTOUCHED)
-                frame = np.frombuffer(img_data.data.to_py(), dtype=np.uint8).reshape((proc_h, proc_w, 4))
-                frame = cv2.flip(frame, 1)
-
-                bgr = cv2.cvtColor(frame, cv2.COLOR_RGBA2BGR)
-                gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-                blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-                edges = cv2.Laplacian(blurred, cv2.CV_8U, ksize=5)
-                
-                # Thresholding with Otsu
-                _, thresh = cv2.threshold(edges, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-                
-                mask = np.zeros_like(bgr)
-                mask[thresh != 0] = bgr[thresh != 0]
-
-                res_rgba = cv2.cvtColor(mask, cv2.COLOR_BGR2RGBA)
-                img_ptr = window.ImageData.new(window.Uint8ClampedArray.new(res_rgba.tobytes()), proc_w, proc_h)
-                ctx.putImageData(img_ptr, 0, 0)
-
-                # 4. FPS Counter
-                fps_counter += 1
-                if (time.time() - fps_start_time) > 1.0:
-                    document.getElementById("fps-tag").innerText = f"FPS: {fps_counter}"
-                    fps_counter = 0
-                    fps_start_time = time.time()
-
-            requestAnimationFrame(create_proxy(loop))
-
-        loop(0)
+        function saveImage() {
+            const link = document.createElement('a');
+            link.download = `capture_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
     </script>
 </body>
 </html>
