@@ -6,83 +6,77 @@
     <title>Laplacian Pro | Dual Engine</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; }
-        #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-y: auto; padding: 20px; }
-        .box { border: 1px solid #0f0; padding: 20px; background: #1a1a1a; width: 360px; border-radius: 15px; box-shadow: 0 0 20px rgba(0,255,0,0.2); }
+        #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; }
+        .box { border: 1px solid #0f0; padding: 20px; background: #1a1a1a; width: 320px; border-radius: 15px; text-align: center; }
         
         .tabs { display: flex; gap: 5px; margin-bottom: 15px; }
-        .tab { flex: 1; padding: 10px; border: 1px solid #0f0; cursor: pointer; text-align: center; font-size: 12px; }
-        .tab.active { background: #0f0; color: #000; font-weight: bold; }
+        .tab { flex: 1; padding: 10px; border: 1px solid #0f0; cursor: pointer; font-size: 11px; opacity: 0.5; }
+        .tab.active { opacity: 1; background: #0f0; color: #000; font-weight: bold; }
         
         .panel { display: none; }
         .panel.active { display: block; }
-
-        .opt { margin-bottom: 10px; text-align: left; position: relative; }
-        label { font-size: 9px; color: #888; text-transform: uppercase; display: block; margin-bottom: 2px; }
-        .val-display { position: absolute; right: 0; top: 0; font-size: 9px; color: #0f0; border: 1px solid #0f0; padding: 0 4px; }
+        .opt { margin-bottom: 10px; text-align: left; }
+        label { font-size: 9px; color: #888; display: block; margin-bottom: 2px; }
         
-        select, button { width: 100%; padding: 8px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; border-radius: 5px; cursor: pointer; font-size: 12px; }
-        #bootBtn { background: #0f0; color: #000; font-weight: bold; margin-top: 10px; }
+        select, button { width: 100%; padding: 10px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; border-radius: 5px; }
+        #bootBtn { background: #333; color: #666; cursor: not-allowed; transition: 0.3s; }
+        #bootBtn.ready { background: #0f0; color: #000; cursor: pointer; }
         
-        #fps-tag { position: fixed; top: 15px; right: 15px; z-index: 50; font-size: 14px; background: rgba(0,0,0,0.6); padding: 8px; border: 1px solid #0f0; display: none; pointer-events: none;}
-        #outputCanvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 1; }
+        #fps-tag { position: fixed; top: 10px; left: 10px; z-index: 50; color: #0f0; display: none; background: rgba(0,0,0,0.5); padding: 5px; border: 1px solid #0f0; }
+        canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 1; }
         #webcam { display: none; }
-        .status-bar { font-size: 9px; margin-top: 10px; color: #f00; text-align: center; }
+        .status { font-size: 10px; margin-top: 10px; color: #f00; }
     </style>
 </head>
 <body>
 
     <div id="dashboard">
         <div class="box">
-            <h2 style="margin:0 0 10px 0; text-align: center; font-size: 1.1rem;">CORE SELECT</h2>
-            
+            <h3 style="margin-top:0">ENGINE SELECT</h3>
             <div class="tabs">
-                <div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A<br><small>(Lap_Gau)</small></div>
-                <div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B<br><small>(Med_Blur)</small></div>
+                <div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A<br>(GAUSSIAN)</div>
+                <div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B<br>(MEDIAN)</div>
             </div>
 
             <div class="opt">
-                <label>Resolution</label>
-                <select id="resSelect">
-                    <option value="1920">1080p (HD)</option>
-                    <option value="1600">900p</option>
-                    <option value="1280" selected>720p (Standard)</option>
-                    <option value="1024">1024px</option>
-                    <option value="800">800px</option>
-                    <option value="640">480p (Fast)</option>
-                    <option value="480">360p (Turbo)</option>
+                <label>RESOLUTION</label>
+                <select id="res">
+                    <option value="1280">720p</option>
+                    <option value="640" selected>480p</option>
+                    <option value="1920">1080p</option>
                 </select>
             </div>
 
             <div id="panelA" class="panel active">
-                <div class="opt"><label>A. Scale</label>
-                    <select id="scaleA"><option value="1">1.0x</option><option value="1.2">1.2x</option><option value="1.5" selected>1.5x</option><option value="2">2.0x</option><option value="3">3.0x</option></select>
+                <div class="opt"><label>A. SCALE</label>
+                    <select id="scaleA"><option value="1.5">1.5x</option><option value="1">1.0x</option><option value="2.5">2.5x</option></select>
                 </div>
-                <div class="opt"><label>A. Gaussian Blur</label>
-                    <select id="blurA"><option value="1">None</option><option value="3">3px</option><option value="5" selected>5px</option><option value="7">7px</option><option value="9">9px</option><option value="11">11px</option><option value="15">15px</option></select>
+                <div class="opt"><label>A. BLUR (GAUSSIAN)</label>
+                    <select id="blurA"><option value="5">5px</option><option value="3">3px</option><option value="11">11px</option></select>
                 </div>
-                <div class="opt"><label>A. Otsu Sensitivity</label>
-                    <select id="senseA"><option value="0.5">0.5</option><option value="0.7">0.7</option><option value="0.9" selected>0.9</option><option value="1.1">1.1</option><option value="1.3">1.3</option><option value="1.5">1.5</option></select>
+                <div class="opt"><label>A. SENSITIVITY (OTSU)</label>
+                    <select id="senseA"><option value="0.9">0.9</option><option value="0.7">0.7 (More)</option><option value="1.2">1.2 (Less)</option></select>
                 </div>
             </div>
 
             <div id="panelB" class="panel">
-                <div class="opt"><label>B. Scale</label>
-                    <select id="scaleB"><option value="1">1.0x</option><option value="1.5">1.5x</option><option value="2.5" selected>2.5x</option><option value="4">4.0x</option></select>
+                <div class="opt"><label>B. SCALE</label>
+                    <select id="scaleB"><option value="2.5">2.5x</option><option value="1.5">1.5x</option><option value="4">4.0x</option></select>
                 </div>
-                <div class="opt"><label>B. Median Blur</label>
-                    <select id="blurB"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option><option value="9">9</option></select>
+                <div class="opt"><label>B. BLUR (MEDIAN)</label>
+                    <select id="blurB"><option value="3">3px</option><option value="5">5px</option></select>
                 </div>
-                <div class="opt"><label>B. Fixed Threshold</label>
-                    <select id="senseB"><option value="10">10 (Heavy)</option><option value="25">25</option><option value="40" selected>40 (Classic)</option><option value="60">60</option><option value="80">80</option><option value="100">100 (Light)</option></select>
+                <div class="opt"><label>B. THRESHOLD (FIXED)</label>
+                    <select id="senseB"><option value="40">40</option><option value="20">20</option><option value="60">60</option></select>
                 </div>
             </div>
 
-            <div class="opt"><label>Edge Boldness (k)</label>
-                <select id="kSize"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option></select>
+            <div class="opt"><label>EDGE THICKNESS (k)</label>
+                <select id="kSize"><option value="3">3</option><option value="1">1</option><option value="5">5</option></select>
             </div>
 
-            <button id="bootBtn" disabled onclick="bootApp()">BOOT ENGINE</button>
-            <p id="status" class="status-bar">CONNECTING...</p>
+            <button id="bootBtn" onclick="bootApp()">WAITING FOR LIB...</button>
+            <div id="status" class="status">LOADING OPENCV...</div>
         </div>
     </div>
 
@@ -92,6 +86,34 @@
 
     <script>
         let currentPanel = 'A';
+        let isLibReady = false;
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('outputCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const offCanvas = document.createElement('canvas');
+        const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+        
+        let worker, isProcessing = false, currentFacingMode = "user";
+        let frames = 0, lastTime = performance.now();
+        let activeConfig = {};
+
+        // 1. Initialize Worker & Wait for Library
+        worker = new Worker('./worker.js');
+        worker.onmessage = (e) => {
+            if (e.data === "READY") {
+                isLibReady = true;
+                const btn = document.getElementById('bootBtn');
+                btn.innerText = "BOOT ENGINE";
+                btn.classList.add('ready');
+                document.getElementById('status').innerText = "CORE ONLINE";
+                document.getElementById('status').style.color = "#0f0";
+            } else {
+                ctx.putImageData(e.data, 0, 0);
+                isProcessing = false;
+                frames++;
+            }
+        };
+
         function switchPanel(p) {
             currentPanel = p;
             document.getElementById('panelA').classList.toggle('active', p==='A');
@@ -100,80 +122,78 @@
             document.getElementById('tabB').classList.toggle('active', p==='B');
         }
 
-        const video = document.getElementById('webcam'), canvas = document.getElementById('outputCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false }), offCanvas = document.createElement('canvas');
-        const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-        const bootBtn = document.getElementById('bootBtn'), statusEl = document.getElementById('status');
-        
-        let worker, isProcessing = false, currentFacingMode = "user", wakeLock = null;
-        let frames = 0, lastTime = performance.now(), lastFrameTime = 0;
-        let config = {};
-
-        worker = new Worker('./worker.js');
-        worker.onmessage = (e) => {
-            if (e.data === "READY") { statusEl.innerText = "READY"; statusEl.style.color = "#0f0"; bootBtn.disabled = false; }
-            else { ctx.putImageData(e.data, 0, 0); isProcessing = false; frames++; }
-        };
-
         async function startCamera(mode) {
             currentFacingMode = mode;
-            if (video.srcObject) video.srcObject.getTracks().forEach(track => track.stop());
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: config.width }, facingMode: currentFacingMode } });
+            if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
+            });
             video.srcObject = stream;
+            return new Promise(resolve => video.onloadedmetadata = resolve);
         }
 
         async function bootApp() {
-            config = {
+            if (!isLibReady) return;
+            
+            activeConfig = {
                 panel: currentPanel,
-                width: parseInt(document.getElementById('resSelect').value),
                 scale: parseFloat(document.getElementById(currentPanel === 'A' ? 'scaleA' : 'scaleB').value),
                 blur: parseInt(document.getElementById(currentPanel === 'A' ? 'blurA' : 'blurB').value),
                 sense: parseFloat(document.getElementById(currentPanel === 'A' ? 'senseA' : 'senseB').value),
                 k: parseInt(document.getElementById('kSize').value)
             };
-            
-            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
-            if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+
             await startCamera("user");
-
-            video.onloadedmetadata = () => {
-                canvas.width = offCanvas.width = video.videoWidth / config.scale;
-                canvas.height = offCanvas.height = video.videoHeight / config.scale;
-                document.getElementById('dashboard').style.display = 'none';
-                canvas.style.display = 'block';
-                requestAnimationFrame(loop);
-            };
+            
+            canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
+            canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
+            
+            document.getElementById('dashboard').style.display = 'none';
+            canvas.style.display = 'block';
+            
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+            processLoop();
         }
 
-        function loop() {
-            const now = performance.now();
-            if (now - lastFrameTime >= 30 && !isProcessing) {
+        function processLoop() {
+            if (!isProcessing && video.videoWidth > 0) {
                 isProcessing = true;
-                lastFrameTime = now;
-                offCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const imgData = offCtx.getImageData(0, 0, canvas.width, canvas.height);
-                worker.postMessage({ img: imgData, ...config, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
-                
-                if (now - lastTime >= 1000) { document.getElementById('fps-tag').innerText = `FPS: ${frames}`; frames = 0; lastTime = now; }
+                offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
+                const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+                worker.postMessage({ 
+                    img: imgData, 
+                    ...activeConfig, 
+                    isFront: (currentFacingMode === "user") 
+                }, [imgData.data.buffer]);
             }
-            requestAnimationFrame(loop);
+            
+            if (performance.now() - lastTime >= 1000) {
+                document.getElementById('fps-tag').innerText = `FPS: ${frames}`;
+                frames = 0; lastTime = performance.now();
+            }
+            requestAnimationFrame(processLoop);
         }
 
-        let tapCount = 0, tapTimer;
-        window.addEventListener('touchstart', (e) => {
-            tapCount++; clearTimeout(tapTimer);
-            tapTimer = setTimeout(() => {
-                if (tapCount === 2) { const tag = document.getElementById('fps-tag'); tag.style.display = (tag.style.display === 'none' ? 'block' : 'none'); }
-                if (tapCount === 3) startCamera(currentFacingMode === "user" ? "environment" : "user");
-                if (tapCount === 4) silentSnapshot();
-                tapCount = 0;
+        // Updated Gesture Control
+        let taps = 0, tapTime;
+        window.addEventListener('touchstart', () => {
+            taps++;
+            clearTimeout(tapTime);
+            tapTime = setTimeout(() => {
+                if (taps === 2) {
+                    const f = document.getElementById('fps-tag');
+                    f.style.display = f.style.display === 'none' ? 'block' : 'none';
+                }
+                if (taps === 3) startCamera(currentFacingMode === "user" ? "environment" : "user");
+                if (taps === 4) {
+                    const link = document.createElement('a');
+                    link.download = 'capture.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                }
+                taps = 0;
             }, 300);
         });
-
-        function silentSnapshot() {
-            const link = document.createElement('a'); link.download = `snap_${Date.now()}.png`;
-            link.href = canvas.toDataURL(); link.click();
-        }
     </script>
 </body>
 </html>
