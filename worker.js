@@ -17,27 +17,27 @@ onmessage = function(e) {
 
     if (panel === 'A') {
         cv.normalize(gray, gray, 0, 255, cv.NORM_MINMAX);
-        cv.GaussianBlur(gray, blurred, new cv.Size(blur, blur), 0);
-        cv.Laplacian(blurred, edges, cv.CV_8U, k);
+        cv.GaussianBlur(gray, blurred, new cv.Size(blur || 5, blur || 5), 0);
+        cv.Laplacian(blurred, edges, cv.CV_8U, k || 3);
         let otsuVal = cv.threshold(edges, new cv.Mat(), 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
-        cv.threshold(edges, edges, otsuVal * sense, 255, cv.THRESH_BINARY);
+        cv.threshold(edges, edges, otsuVal * (sense || 0.9), 255, cv.THRESH_BINARY);
     } else {
         if (oldCode) {
-            // Logic from your shared Python Code
+            // FORCED PYTHON LOGIC (Ignore UI Sliders)
             cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
             cv.Laplacian(blurred, edges, cv.CV_8U, 5);
             cv.threshold(edges, edges, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
         } else {
-            let b = blur % 2 === 0 ? blur + 1 : blur;
+            // MEDIAN BLUR LOGIC
+            let b = (blur || 3) % 2 === 0 ? (blur || 3) + 1 : (blur || 3);
             cv.medianBlur(gray, blurred, b);
-            cv.Laplacian(blurred, edges, cv.CV_8U, k);
-            cv.threshold(edges, edges, sense, 255, cv.THRESH_BINARY);
+            cv.Laplacian(blurred, edges, cv.CV_8U, k || 3);
+            cv.threshold(edges, edges, sense || 40, 255, cv.THRESH_BINARY);
         }
     }
 
     let mask = new cv.Mat(src.rows, src.cols, cv.CV_8UC4, [0, 0, 0, 255]);
     src.copyTo(mask, edges);
-
     const output = new ImageData(new Uint8ClampedArray(mask.data), mask.cols, mask.rows);
     postMessage(output, [output.data.buffer]);
 
