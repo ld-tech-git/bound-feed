@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | Absolute Master v8</title>
+    <title>Laplacian Pro | Absolute Master v10</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
@@ -22,24 +22,18 @@
         #fps-tag { position: fixed; top: 15px; left: 15px; z-index: 60; color: #0f0; display: none; background: rgba(0,0,0,0.6); padding: 8px; border: 1px solid #0f0; pointer-events: none; }
         #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 55; color: #f00; display: none; font-weight: bold; animation: blink 1s infinite; }
         
-        /* Fixed Bottom-Right Subtle Icon */
         #fsToggle { 
             position: fixed; z-index: 80; width: 32px; height: 32px; 
             border: 1.5px solid rgba(128, 128, 128, 0.5); display: none; cursor: pointer;
             background: rgba(0,0,0,0.2); border-radius: 4px; 
-            bottom: 25px; right: 25px; /* STRICT POSITION */
+            bottom: 25px; right: 25px;
         }
         #fsToggle::after {
             content: ""; position: absolute; inset: 8px;
             border: 2px solid rgba(128, 128, 128, 0.7); border-style: solid none none solid;
         }
         #fsToggle.exit::after { border-style: none solid solid none; }
-
-        @keyframes blink { 50% { opacity: 0; } }
-        canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 1; }
-        #webcam { display: none; }
         .status { font-size: 10px; margin-top: 10px; color: #f00; font-weight: bold; }
-        .rec-box { border: 1px dashed #f00; padding: 10px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -52,22 +46,10 @@
         <div class="box">
             <h2 style="margin:0 0 10px 0;">SYSTEM CONFIG</h2>
             
-            <div class="rec-box">
-                <label style="color: #f00;">Global Recording</label>
-                <div class="opt">
-                    <label>Format</label>
-                    <select id="recFormat">
-                        <option value="video/webm;codecs=vp9">WEBM (Universal)</option>
-                        <option value="video/mp4">MP4 (PC Only)</option>
-                    </select>
-                </div>
-                <div class="opt">
-                    <label>Microphone</label>
-                    <select id="micEnable">
-                        <option value="no" selected>No Audio</option>
-                        <option value="yes">With Audio</option>
-                    </select>
-                </div>
+            <div style="border: 1px dashed #f00; padding: 10px; margin-bottom: 15px;">
+                <label style="color: #f00;">Recording</label>
+                <div class="opt"><select id="recFormat"><option value="video/webm;codecs=vp9">WEBM</option><option value="video/mp4">MP4</option></select></div>
+                <div class="opt"><select id="micEnable"><option value="no">No Audio</option><option value="yes">With Audio</option></select></div>
             </div>
 
             <div class="tabs">
@@ -93,7 +75,7 @@
             <div id="panelB" class="panel">
                 <div class="opt"><label>B. Logic</label><select id="logicB"><option value="old_code" selected>old_code_use</option><option value="median">Standard</option></select></div>
                 <div class="opt"><label>B. Scale</label><select id="scaleB"><option value="1">1.0x</option><option value="1.5">1.5x</option><option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option><option value="5">5.0x</option></select></div>
-                <div class="opt"><label>B. Blur</label><select id="blurB"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option><option value="9">9</option></select></div>
+                <div class="opt"><label>B. Median Blur</label><select id="blurB"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option><option value="9">9</option></select></div>
                 <div class="opt"><label>B. Threshold</label><select id="senseB"><option value="10">10</option><option value="20">20</option><option value="40" selected>40</option><option value="60">60</option><option value="80">80</option><option value="100">100</option></select></div>
             </div>
 
@@ -104,7 +86,7 @@
         </div>
     </div>
 
-    <video id="webcam" autoplay playsinline></video>
+    <video id="webcam" autoplay playsinline muted></video>
     <canvas id="outputCanvas"></canvas>
 
     <script>
@@ -113,7 +95,7 @@
         const ctx = canvas.getContext('2d', { alpha: false }), offCanvas = document.createElement('canvas');
         const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
         let worker, isProcessing = false, currentFacingMode = "user", activeConfig = null;
-        let mediaRecorder, recordedChunks = [], frames = 0, lastTime = performance.now();
+        let mediaRecorder, recordedChunks = [], frames = 0, lastTime = performance.now(), lastFrameSuccess = 0;
 
         worker = new Worker('./worker.js');
         worker.onmessage = (e) => {
@@ -121,7 +103,12 @@
                 isLibReady = true; document.getElementById('bootBtn').innerText = "BOOT ENGINE"; 
                 document.getElementById('bootBtn').classList.add('ready');
                 document.getElementById('status').innerText = "ONLINE"; document.getElementById('status').style.color = "#0f0";
-            } else { ctx.putImageData(e.data, 0, 0); isProcessing = false; frames++; }
+            } else { 
+                ctx.putImageData(e.data, 0, 0); 
+                isProcessing = false; 
+                frames++; 
+                lastFrameSuccess = performance.now(); 
+            }
         };
 
         function switchPanel(p) {
@@ -135,6 +122,8 @@
         async function bootApp() {
             if(!isLibReady) return;
             if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+            
+            lastFrameSuccess = 0; // Disable watchdog during startup
 
             activeConfig = {
                 panel: currentPanel,
@@ -145,31 +134,44 @@
                 oldCode: (currentPanel === 'B' && document.getElementById('logicB').value === 'old_code')
             };
 
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
-            });
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-                canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
-                canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
-                document.getElementById('dashboard').style.display = 'none';
-                canvas.style.display = 'block';
-                document.getElementById('fsToggle').style.display = 'block';
-                isProcessing = false;
-            };
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
+                    canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
+                    document.getElementById('dashboard').style.display = 'none';
+                    canvas.style.display = 'block';
+                    document.getElementById('fsToggle').style.display = 'block';
+                    isProcessing = false;
+                };
+            } catch(e) { alert("Camera busy. Try again."); }
         }
 
-        if (!window.loopStarted) { requestAnimationFrame(function loop() { processLoop(); requestAnimationFrame(loop); }); window.loopStarted = true; }
-
         function processLoop() {
+            const now = performance.now();
+            
+            // Watchdog: Only triggers if at least one frame has succeeded (lastFrameSuccess > 0)
+            if (isProcessing && lastFrameSuccess > 0 && (now - lastFrameSuccess > 3000)) {
+                isProcessing = false; // Force reset
+            }
+
             if (!isProcessing && video.readyState === 4 && activeConfig) {
                 isProcessing = true;
                 offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
                 const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
                 worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
             }
-            if (performance.now() - lastTime >= 1000) { document.getElementById('fps-tag').innerText = `FPS: ${frames}`; frames = 0; lastTime = performance.now(); }
+            
+            if (now - lastTime >= 1000) { 
+                document.getElementById('fps-tag').innerText = `FPS: ${frames}`; 
+                frames = 0; lastTime = now; 
+            }
+            requestAnimationFrame(processLoop);
         }
+        requestAnimationFrame(processLoop);
 
         function toggleFullScreen() {
             if (!document.fullscreenElement) document.documentElement.requestFullscreen();
