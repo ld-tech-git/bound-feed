@@ -3,17 +3,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | Dual Cam</title>
+    <title>Laplacian Pro | Bound-Feed Master</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-y: auto; padding: 20px; }
-        .box { border: 1px solid #0f0; padding: 25px; background: #1a1a1a; width: 340px; text-align: center; border-radius: 15px; }
-        .opt { margin-bottom: 15px; text-align: left; position: relative; }
+        .box { border: 1px solid #0f0; padding: 25px; background: #1a1a1a; width: 340px; text-align: center; border-radius: 15px; box-shadow: 0 0 20px rgba(0,255,0,0.2); }
+        .opt { margin-bottom: 12px; text-align: left; position: relative; }
         label { font-size: 10px; color: #888; text-transform: uppercase; display: block; margin-bottom: 4px; }
         .val-display { position: absolute; right: 0; top: 0; font-size: 10px; color: #0f0; background: #000; padding: 0 4px; border: 1px solid #0f0; border-radius: 3px; }
         select, button { width: 100%; padding: 10px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; border-radius: 5px; cursor: pointer; }
         #fps-tag { position: fixed; top: 15px; right: 15px; z-index: 50; font-size: 14px; background: rgba(0,0,0,0.6); padding: 8px; border: 1px solid #0f0; display: none; pointer-events: none;}
-        #timer { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; z-index: 60; display: none; color: #fff; font-weight: bold; text-shadow: 0 0 20px #0f0; pointer-events: none;}
+        #timer { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; z-index: 60; display: none; color: #fff; font-weight: bold; pointer-events: none;}
         #outputCanvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 1; }
         #webcam { display: none; }
         .status-bar { font-size: 10px; margin-top: 15px; color: #f00; }
@@ -23,7 +23,7 @@
 
     <div id="dashboard">
         <div class="box">
-            <h2 style="margin:0 0 15px 0;">SYSTEM CONFIG</h2>
+            <h2 style="margin:0 0 15px 0; font-size: 1.2rem;">SYSTEM CONFIG</h2>
             
             <div class="opt">
                 <label>0. Initial Camera</label>
@@ -54,17 +54,39 @@
             </div>
 
             <div class="opt">
-                <label>3. Skin Detail</label>
+                <label>3. Skin Detail (Gaussian)</label>
                 <span id="blurVal" class="val-display">5px</span>
                 <select id="blurSelect" onchange="updateVal('blurSelect','blurVal','px')">
                     <option value="3">3px</option>
                     <option value="5" selected>5px</option>
                     <option value="7">7px</option>
+                    <option value="11">11px</option>
+                </select>
+            </div>
+
+            <div class="opt">
+                <label>4. Sensitivity</label>
+                <span id="senseVal" class="val-display">0.9</span>
+                <select id="senseSelect" onchange="updateVal('senseSelect','senseVal','')">
+                    <option value="0.7">High (0.7)</option>
+                    <option value="0.9" selected>Normal (0.9)</option>
+                    <option value="1.3">Strict (1.3)</option>
+                </select>
+            </div>
+
+            <div class="opt">
+                <label>5. Edge Thickness (k)</label>
+                <span id="kVal" class="val-display">5</span>
+                <select id="kSizeSelect" onchange="updateVal('kSizeSelect','kVal','')">
+                    <option value="1">1</option>
+                    <option value="3">3</option>
+                    <option value="5" selected>5</option>
+                    <option value="7">7</option>
                 </select>
             </div>
 
             <button id="bootBtn" disabled onclick="bootApp()">BOOT SYSTEM</button>
-            <p id="status" class="status-bar">CONNECTING TO WORKER...</p>
+            <p id="status" class="status-bar">CONNECTING TO ENGINE...</p>
         </div>
     </div>
 
@@ -86,14 +108,14 @@
         const bootBtn = document.getElementById('bootBtn');
         const statusEl = document.getElementById('status');
         
-        let worker, isProcessing = false, currentFacingMode = "user";
+        let worker, isProcessing = false, currentFacingMode = "user", wakeLock = null;
         let frames = 0, lastTime = performance.now(), lastFrameTime = 0;
         let scale, blur, k, sense, width;
 
         worker = new Worker('./worker.js');
         worker.onmessage = (e) => {
             if (e.data === "READY") {
-                statusEl.innerText = "CORE ENGINE READY";
+                statusEl.innerText = "ENGINE READY";
                 statusEl.style.color = "#0f0";
                 bootBtn.disabled = false;
             } else {
@@ -101,6 +123,10 @@
                 isProcessing = false;
                 frames++;
             }
+        };
+
+        const requestWakeLock = async () => {
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
         };
 
         async function startCamera(mode) {
@@ -117,39 +143,35 @@
         async function bootApp() {
             scale = parseFloat(document.getElementById('chunkSelect').value);
             blur = parseInt(document.getElementById('blurSelect').value);
+            k = parseInt(document.getElementById('kSizeSelect').value);
+            sense = parseFloat(document.getElementById('senseSelect').value);
             width = parseInt(document.getElementById('resSelect').value);
             currentFacingMode = document.getElementById('camSelect').value;
             
+            await requestWakeLock();
             if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
             
             await startCamera(currentFacingMode);
 
             video.onloadedmetadata = () => {
-                const w = video.videoWidth / scale;
-                const h = video.videoHeight / scale;
-                canvas.width = offCanvas.width = w;
-                canvas.height = offCanvas.height = h;
+                canvas.width = offCanvas.width = video.videoWidth / scale;
+                canvas.height = offCanvas.height = video.videoHeight / scale;
                 document.getElementById('dashboard').style.display = 'none';
                 canvas.style.display = 'block';
-                // Note: FPS starts hidden, 2 taps to show
                 requestAnimationFrame(loop);
             };
         }
 
         function loop() {
             const now = performance.now();
-            if (now - lastFrameTime >= 40 && !isProcessing) {
+            if (now - lastFrameTime >= 33 && !isProcessing) {
                 isProcessing = true;
                 lastFrameTime = now;
                 offCtx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imgData = offCtx.getImageData(0, 0, canvas.width, canvas.height);
                 
-                // Note: Mirroring only applied if using front camera
                 worker.postMessage({
-                    img: imgData, 
-                    blur, 
-                    kSize: 5, 
-                    sense: 0.9, 
+                    img: imgData, blur, kSize: k, sense,
                     isFront: (currentFacingMode === "user")
                 }, [imgData.data.buffer]);
                 
@@ -161,7 +183,6 @@
             requestAnimationFrame(loop);
         }
 
-        // Gesture Logic
         let tapCount = 0, tapTimer;
         window.addEventListener('touchstart', (e) => {
             tapCount++;
@@ -193,7 +214,7 @@
                     clearInterval(countdown);
                     timerEl.style.display = 'none';
                     const link = document.createElement('a');
-                    link.download = `laplacian_snap.png`;
+                    link.download = `laplacian_capture.png`;
                     link.href = canvas.toDataURL();
                     link.click();
                 }
