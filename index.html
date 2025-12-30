@@ -244,7 +244,7 @@
         }
 
         function processLoop() {
-            if (!isProcessing && video.videoWidth > 0 && activeConfig) {
+            if (!isProcessing && video.readyState === 4 && video.videoWidth > 0 && activeConfig) {
                 isProcessing = true;
                 offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
                 const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
@@ -268,7 +268,11 @@
 
             tapT = setTimeout(() => {
                 if (taps === 2) { const f = document.getElementById('fps-tag'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
-                if (taps === 3) { currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; bootApp(); }
+                if (taps === 3) {
+                currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+                isProcessing = false; // FORCIBLY RELEASE THE LOCK
+                bootApp(); 
+                }    
                 if (taps === 4) setTimeout(() => {
                     const l = document.createElement('a'); l.download = `snap_${Date.now()}.png`; l.href = canvas.toDataURL(); l.click();
                 }, 7000);
