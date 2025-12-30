@@ -23,12 +23,10 @@ onmessage = function(e) {
         cv.threshold(edges, edges, otsuVal * (sense || 0.9), 255, cv.THRESH_BINARY);
     } else {
         if (oldCode) {
-            // FORCED PYTHON LOGIC (Ignore UI Sliders)
             cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
             cv.Laplacian(blurred, edges, cv.CV_8U, 5);
             cv.threshold(edges, edges, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
         } else {
-            // MEDIAN BLUR LOGIC
             let b = (blur || 3) % 2 === 0 ? (blur || 3) + 1 : (blur || 3);
             cv.medianBlur(gray, blurred, b);
             cv.Laplacian(blurred, edges, cv.CV_8U, k || 3);
