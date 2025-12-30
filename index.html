@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | v34 Definitive</title>
+    <title>Laplacian Pro | v37 Complete</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
@@ -21,12 +21,7 @@
         #stats-tag { position: fixed; top: 15px; left: 15px; z-index: 200; color: #888; display: none; background: rgba(0,0,0,0.4); padding: 8px; border: 1px solid #444; pointer-events: none; font-size: 11px; }
         #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 150; color: #f00; display: none; font-weight: bold; animation: blink 1s infinite; }
         
-        #fsToggle { 
-            position: fixed; bottom: 30px; right: 30px; z-index: 180; 
-            width: 44px; height: 44px; border: 2px solid #555; 
-            display: none; background: rgba(0,0,0,0.3); border-radius: 8px; 
-            opacity: 0; transition: opacity 0.5s; 
-        }
+        #fsToggle { position: fixed; bottom: 30px; right: 30px; z-index: 180; width: 44px; height: 44px; border: 2px solid #555; display: none; background: rgba(0,0,0,0.3); border-radius: 8px; opacity: 0; transition: opacity 0.5s; }
         #fsToggle.visible { opacity: 1; display: block; }
         #fsToggle::after { content: ""; position: absolute; top: 14px; left: 14px; width: 12px; height: 12px; border: 2px solid #888; border-style: solid none none solid; }
 
@@ -46,7 +41,7 @@
             <h2 style="margin:0 0 10px 0;">SYSTEM CONFIG</h2>
             
             <div style="border: 1px dashed #f00; padding: 10px; margin-bottom: 15px;">
-                <label style="color: #f00;">Capture Logic</label>
+                <label style="color: #f00;">Capture Control</label>
                 <div class="opt"><select id="recFormat"><option value="video/webm;codecs=vp9">WEBM (VP9)</option><option value="video/mp4">MP4 (H.264)</option></select></div>
                 <div class="opt"><select id="micEnable"><option value="no">No Audio</option><option value="yes">Use Microphone</option></select></div>
             </div>
@@ -60,29 +55,26 @@
                 <label>Resolution</label>
                 <select id="res">
                     <option value="1920">1080p</option>
-                    <option value="1600">900p</option>
-                    <option value="1280" selected>720p HD</option>
-                    <option value="1024">1024px</option>
-                    <option value="800">800px</option>
-                    <option value="640">480p SD</option>
-                    <option value="480">360p</option>
+                    <option value="1280" selected>720p</option>
+                    <option value="854">480p</option>
+                    <option value="640">360p</option>
                 </select>
             </div>
 
             <div id="panelA" class="panel active">
-                <div class="opt"><label>A. Scale</label><select id="scaleA"><option value="1.0">1.0x</option><option value="1.2">1.2x</option><option value="1.5" selected>1.5x</option><option value="1.8">1.8x</option><option value="2.0">2.0x</option><option value="2.5">2.5x</option><option value="3.0">3.0x</option></select></div>
-                <div class="opt"><label>A. Blur</label><select id="blurA"><option value="1">None</option><option value="3">3px</option><option value="5" selected>5px</option><option value="7">7px</option><option value="9">9px</option><option value="11">11px</option><option value="15">15px</option><option value="21">21px</option></select></div>
-                <div class="opt"><label>A. Sense</label><select id="senseA"><option value="0.3">0.3</option><option value="0.5">0.5</option><option value="0.7">0.7</option><option value="0.9" selected>0.9</option><option value="1.1">1.1</option><option value="1.3">1.3</option><option value="1.5">1.5</option></select></div>
+                <div class="opt"><label>A. Scale</label><select id="scaleA"><option value="1.0">1.0x</option><option value="1.5" selected>1.5x</option><option value="2.0">2.0x</option><option value="3.0">3.0x</option><option value="3.5">3.5x</option></select></div>
+                <div class="opt"><label>A. Blur</label><select id="blurA"><option value="1">None</option><option value="3">3px</option><option value="5" selected>5px</option><option value="11">11px</option><option value="21">21px</option></select></div>
+                <div class="opt"><label>A. Sense</label><select id="senseA"><option value="0.3">0.3</option><option value="0.7">0.7</option><option value="0.9" selected>0.9</option><option value="1.5">1.5</option></select></div>
             </div>
 
             <div id="panelB" class="panel">
                 <div class="opt"><label>B. Logic</label><select id="logicB"><option value="old_code" selected>old_code</option><option value="median">Median</option></select></div>
-                <div class="opt"><label>B. Scale</label><select id="scaleB"><option value="1.0">1.0x</option><option value="1.2">1.2x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option><option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option><option value="5.0">5.0x</option><option value="8.0">8.0x</option></select></div>
-                <div class="opt"><label>B. Filter Strength</label><select id="blurB"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option><option value="9">9</option></select></div>
-                <div class="opt"><label>B. Threshold</label><select id="senseB"><option value="5">5</option><option value="15">15</option><option value="30">30</option><option value="40" selected>40</option><option value="60">60</option><option value="80">80</option><option value="120">120</option></select></div>
+                <div class="opt"><label>B. Scale</label><select id="scaleB"><option value="1.0">1.0x</option><option value="2.0">2.0x</option><option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option></select></div>
+                <div class="opt"><label>B. Filter Strength</label><select id="blurB"><option value="1">1</option><option value="3" selected>3</option><option value="9">9</option></select></div>
+                <div class="opt"><label>B. Threshold</label><select id="senseB"><option value="5">5</option><option value="40" selected>40</option><option value="120">120</option></select></div>
             </div>
 
-            <div class="opt"><label>Global k-Thickness</label><select id="kSize"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option><option value="9">9</option></select></div>
+            <div class="opt"><label>k Thickness</label><select id="kSize"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="9">9</option></select></div>
             <button id="bootBtn" onclick="bootApp()">BOOT ENGINE</button>
         </div>
     </div>
@@ -96,8 +88,9 @@
         const ctx = canvas.getContext('2d', { alpha: false }), offCanvas = document.createElement('canvas');
         const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
         
-        let isProcessing = false, currentFacingMode = "user", activeConfig = null, fsTimeout, batteryLevel = "--";
+        let currentFacingMode = "user", activeConfig = null, fsTimeout, batteryLevel = "--";
         let frames = 0, lastTime = performance.now(), lastHeartbeat = performance.now();
+        let lastFrameReceivedTime = performance.now();
 
         if ('getBattery' in navigator) {
             navigator.getBattery().then(batt => {
@@ -108,23 +101,27 @@
 
         function showUIControls() {
             const btn = document.getElementById('fsToggle');
-            btn.classList.add('visible');
-            btn.style.display = 'block';
-            clearTimeout(fsTimeout);
-            btn.style.opacity = '1';
+            btn.classList.add('visible'); btn.style.display = 'block';
+            clearTimeout(fsTimeout); btn.style.opacity = '1';
             fsTimeout = setTimeout(() => {
                 btn.style.opacity = '0';
                 setTimeout(() => { if(btn.style.opacity === '0') btn.style.display = 'none'; }, 500);
             }, 2500);
         }
 
-        async function bootApp() {
-            isProcessing = true; 
-            if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+        function resetWorker() {
             if (worker) worker.terminate();
             worker = new Worker('./worker.js');
-            worker.onmessage = (e) => { ctx.putImageData(e.data, 0, 0); isProcessing = false; frames++; lastHeartbeat = performance.now(); };
+            worker.onmessage = (e) => {
+                ctx.putImageData(e.data, 0, 0);
+                frames++;
+                lastFrameReceivedTime = performance.now();
+            };
+        }
 
+        async function bootApp() {
+            if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+            resetWorker();
             try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
 
             activeConfig = {
@@ -140,11 +137,10 @@
                 video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
             });
             video.srcObject = stream;
-            
             video.onloadedmetadata = () => {
                 canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
                 canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
-                isProcessing = false; lastHeartbeat = performance.now();
+                lastFrameReceivedTime = lastHeartbeat = performance.now();
                 document.getElementById('dashboard').style.display = 'none';
                 canvas.style.display = 'block';
                 showUIControls();
@@ -153,14 +149,16 @@
 
         function loop() {
             const now = performance.now();
-            if (!isProcessing && activeConfig && canvas.style.display === 'block') {
-                if (now - lastHeartbeat > 3000) { lastHeartbeat = now; bootApp(); return; }
-            }
-            if (!isProcessing && video.readyState === 4 && activeConfig) {
-                isProcessing = true;
-                offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
-                const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-                worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
+            if (activeConfig && canvas.style.display === 'block') {
+                if (now - lastHeartbeat > 2000) { lastHeartbeat = now; bootApp(); return; }
+                if (video.readyState === 4 && (now - lastFrameReceivedTime > 1200)) {
+                    lastFrameReceivedTime = now; resetWorker();
+                }
+                if (video.readyState === 4) {
+                    offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
+                    const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+                    worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
+                }
             }
             if (now - lastTime >= 1000) {
                 document.getElementById('stats-tag').innerHTML = `FPS: ${frames}<br>BAT: ${batteryLevel}%<br>WAKE: ${wakeLock?'ON':'OFF'}`;
@@ -170,26 +168,16 @@
         }
         loop();
 
-        function toggleFullScreen(e) {
-            e.stopPropagation();
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else document.exitFullscreen();
-        }
+        function toggleFullScreen(e) { e.stopPropagation(); if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
 
         let taps = 0, tapT, startX = 0;
         window.addEventListener('touchstart', (e) => {
-            showUIControls();
-            startX = e.changedTouches[0].screenX;
-            taps++; clearTimeout(tapT);
+            showUIControls(); startX = e.changedTouches[0].screenX; taps++; clearTimeout(tapT);
             tapT = setTimeout(() => {
-                if (taps === 2) {
-                    const s = document.getElementById('stats-tag');
-                    s.style.display = s.style.display === 'none' ? 'block' : 'none';
-                }
+                if (taps === 2) { const s = document.getElementById('stats-tag'); s.style.display = s.style.display === 'none' ? 'block' : 'none'; }
                 if (taps === 3) { currentFacingMode = (currentFacingMode === "user" ? "environment" : "user"); bootApp(); }
-                if (taps === 4) {
-                    const link = document.createElement('a');
-                    link.download = `snap_${Date.now()}.png`;
+                if (taps === 4) { 
+                    const link = document.createElement('a'); link.download = `snap_${Date.now()}.png`;
                     link.href = canvas.toDataURL(); link.click();
                 }
                 taps = 0;
@@ -208,11 +196,10 @@
                     audio.getAudioTracks().forEach(t => stream.addTrack(t));
                 }
                 mediaRecorder = new MediaRecorder(stream, { mimeType: document.getElementById('recFormat').value });
-                const chunks = [];
-                mediaRecorder.ondataavailable = e => chunks.push(e.data);
+                const chunks = []; mediaRecorder.ondataavailable = e => chunks.push(e.data);
                 mediaRecorder.onstop = () => {
                     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(chunks));
-                    a.download = `rec_${Date.now()}.${document.getElementById('recFormat').value.includes('mp4') ? 'mp4' : 'webm'}`;
+                    a.download = `rec_${Date.now()}.${document.getElementById('recFormat').value.includes('mp4')?'mp4':'webm'}`;
                     a.click();
                 };
                 mediaRecorder.start(); isRecording = true; document.getElementById('rec-indicator').style.display = 'block';
