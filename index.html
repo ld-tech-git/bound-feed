@@ -3,11 +3,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | GitHub Pages Fix</title>
+    <title>Laplacian Pro | Bound-Feed Master</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-y: auto; padding: 20px; }
-        .box { border: 1px solid #0f0; padding: 25px; background: #1a1a1a; width: 320px; text-align: center; border-radius: 15px; box-shadow: 0 0 20px rgba(0,255,0,0.2); }
+        .box { border: 1px solid #0f0; padding: 25px; background: #1a1a1a; width: 340px; text-align: center; border-radius: 15px; box-shadow: 0 0 20px rgba(0,255,0,0.2); }
         .opt { margin-bottom: 12px; text-align: left; }
         label { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 1px; display: block; margin-bottom: 4px; }
         select, button { width: 100%; padding: 10px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; border-radius: 5px; cursor: pointer; }
@@ -24,14 +24,17 @@
         <div class="box">
             <h2 style="margin:0 0 15px 0; font-size: 1.2rem;">SYSTEM CONFIG</h2>
             
-            <div class="opt"><label>1. Resolution</label>
+            <div class="opt">
+                <label>1. Input Resolution</label>
                 <select id="resSelect">
-                    <option value="1280" selected>720p (Balanced)</option>
-                    <option value="640">480p (Fast)</option>
+                    <option value="1920">1080p</option>
+                    <option value="1280" selected>720p</option>
+                    <option value="640">480p</option>
                 </select>
             </div>
 
-            <div class="opt"><label>2. Processing Scale</label>
+            <div class="opt">
+                <label>2. Processing Scale</label>
                 <select id="chunkSelect">
                     <option value="1">Quality</option>
                     <option value="1.5" selected>Balanced</option>
@@ -39,24 +42,46 @@
                 </select>
             </div>
 
-            <div class="opt"><label>3. Skin Detail</label>
+            <div class="opt">
+                <label>3. Skin Detail (Noise Filter)</label>
                 <select id="blurSelect">
-                    <option value="5">Standard</option>
-                    <option value="7" selected>Clean Face</option>
-                    <option value="11">Soft</option>
+                    <option value="3">High (Sharp)</option>
+                    <option value="5" selected>Standard</option>
+                    <option value="7">Clean Face</option>
+                    <option value="11">Maximum Smooth</option>
                 </select>
             </div>
 
-            <div class="opt"><label>4. Edge Thickness</label>
+            <div class="opt">
+                <label>4. Detection Sensitivity</label>
+                <select id="senseSelect">
+                    <option value="0.7">Maximum (Dark Rooms)</option>
+                    <option value="0.9" selected>Standard</option>
+                    <option value="1.3">Strict (Clear Lighting)</option>
+                </select>
+            </div>
+
+            <div class="opt">
+                <label>5. Edge Thickness (k-Size)</label>
                 <select id="kSizeSelect">
                     <option value="1">Thin</option>
                     <option value="3">Medium</option>
                     <option value="5" selected>Bold</option>
+                    <option value="7">Ultra</option>
+                </select>
+            </div>
+
+            <div class="opt">
+                <label>6. Line Expansion</label>
+                <select id="dilateSelect">
+                    <option value="0" selected>None</option>
+                    <option value="1">1px (Bold)</option>
+                    <option value="2">2px (Maximum)</option>
                 </select>
             </div>
 
             <button id="bootBtn" disabled onclick="bootApp()">BOOT SYSTEM</button>
-            <p id="status" class="status-bar">INITIALIZING WORKER...</p>
+            <p id="status" class="status-bar">CONNECTING TO WORKER...</p>
         </div>
     </div>
 
@@ -74,36 +99,35 @@
         const bootBtn = document.getElementById('bootBtn');
         const statusEl = document.getElementById('status');
         
-        let worker, targetFPS, chunkScale, blurSize, kSize, isProcessing = false;
+        let worker, targetFPS = 24, chunkScale, blurSize, kSize, dilate, sensitivity, isProcessing = false;
         let frames = 0, lastTime = performance.now(), lastFrameTime = 0;
 
-        // FIXED PATH: Uses ./ to stay within the 'bound-feed' folder
-        try {
-            worker = new Worker('./worker.js');
-            worker.onmessage = (e) => {
-                if (e.data === "READY") {
-                    statusEl.innerText = "CORE ENGINE READY";
-                    statusEl.style.color = "#0f0";
-                    bootBtn.disabled = false;
-                } else {
-                    ctx.putImageData(e.data, 0, 0);
-                    isProcessing = false;
-                    frames++;
-                }
-            };
-            worker.onerror = (err) => {
-                statusEl.innerText = "WORKER ERROR: Ensure worker.js is in the same folder.";
-                console.error("Worker error:", err);
-            };
-        } catch (e) {
-            statusEl.innerText = "WORKER BLOCKED: " + e.message;
-        }
+        // Path Correction for GitHub Pages subfolders
+        worker = new Worker('./worker.js');
+        
+        worker.onmessage = (e) => {
+            if (e.data === "READY") {
+                statusEl.innerText = "CORE ENGINE READY";
+                statusEl.style.color = "#0f0";
+                bootBtn.disabled = false;
+            } else {
+                ctx.putImageData(e.data, 0, 0);
+                isProcessing = false;
+                frames++;
+            }
+        };
+
+        worker.onerror = (err) => {
+            statusEl.innerText = "PATH ERROR: worker.js not found in current folder.";
+            console.error(err);
+        };
 
         async function bootApp() {
-            targetFPS = 24; 
             chunkScale = parseFloat(document.getElementById('chunkSelect').value);
             blurSize = parseInt(document.getElementById('blurSelect').value);
             kSize = parseInt(document.getElementById('kSizeSelect').value);
+            dilate = parseInt(document.getElementById('dilateSelect').value);
+            sensitivity = parseFloat(document.getElementById('senseSelect').value);
             const width = parseInt(document.getElementById('resSelect').value);
             
             if (document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
@@ -113,7 +137,7 @@
                     video: { width: { ideal: width }, facingMode: "user" }
                 });
                 video.srcObject = stream;
-            } catch (err) { alert("Camera Access Denied"); return; }
+            } catch (err) { alert("Camera Denied"); return; }
 
             video.onloadedmetadata = () => {
                 const w = video.videoWidth / chunkScale;
@@ -139,7 +163,8 @@
                     img: imageData, 
                     blur: blurSize,
                     kSize: kSize,
-                    dilate: 0
+                    dilate: dilate,
+                    sense: sensitivity
                 }, [imageData.data.buffer]);
                 
                 if (now - lastTime >= 1000) {
@@ -150,9 +175,8 @@
             requestAnimationFrame(processFrame);
         }
 
-        // Snapshot Logic
+        // Snapshot Logic (Triple Tap)
         window.addEventListener('touchstart', (e) => {
-            // Triple tap for snapshot
             if (e.touches.length === 3) startSnapshot();
         });
 
@@ -167,7 +191,7 @@
                     clearInterval(countdown);
                     timerEl.style.display = 'none';
                     const link = document.createElement('a');
-                    link.download = `capture.png`;
+                    link.download = `capture_${Date.now()}.png`;
                     link.href = canvas.toDataURL();
                     link.click();
                 }
