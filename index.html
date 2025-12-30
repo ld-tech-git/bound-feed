@@ -3,23 +3,26 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | Recording Master</title>
+    <title>Laplacian Pro | Absolute Master</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
-        .box { border: 1px solid #0f0; padding: 20px; background: #1a1a1a; width: 340px; border-radius: 15px; text-align: center; }
+        .box { border: 1px solid #0f0; padding: 20px; background: #1a1a1a; width: 350px; border-radius: 15px; text-align: center; box-shadow: 0 0 20px rgba(0,255,0,0.3); }
         .tabs { display: flex; gap: 5px; margin-bottom: 15px; }
-        .tab { flex: 1; padding: 12px; border: 1px solid #0f0; cursor: pointer; font-size: 11px; opacity: 0.4; }
+        .tab { flex: 1; padding: 12px; border: 1px solid #0f0; cursor: pointer; font-size: 11px; opacity: 0.4; transition: 0.3s; }
         .tab.active { opacity: 1; background: #0f0; color: #000; font-weight: bold; }
         .panel { display: none; border-top: 1px solid #333; padding-top: 10px; }
         .panel.active { display: block; }
         .opt { margin-bottom: 12px; text-align: left; }
         label { font-size: 10px; color: #888; display: block; margin-bottom: 4px; text-transform: uppercase; }
-        select, button { width: 100%; padding: 12px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; border-radius: 5px; }
-        #bootBtn { background: #0f0; color: #000; font-weight: bold; margin-top: 10px; cursor: pointer; }
-        #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 55; color: #f00; display: none; font-weight: bold; font-size: 14px; text-shadow: 0 0 5px #000; }
+        select, button { width: 100%; padding: 12px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; border-radius: 5px; font-size: 13px; }
+        #bootBtn { background: #222; color: #444; cursor: not-allowed; margin-top: 10px; transition: 0.3s; }
+        #bootBtn.ready { background: #0f0; color: #000; cursor: pointer; font-weight: bold; }
+        #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 55; color: #f00; display: none; font-weight: bold; font-size: 14px; text-shadow: 0 0 5px #000; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
         canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 1; }
         #webcam { display: none; }
+        .status { font-size: 10px; margin-top: 10px; color: #f00; font-weight: bold; }
         .rec-box { border: 1px dashed #f00; padding: 10px; margin-bottom: 15px; }
     </style>
 </head>
@@ -27,19 +30,19 @@
 
     <div id="dashboard">
         <div class="box">
-            <h2 style="margin:0 0 10px 0;">SYSTEM CONFIG</h2>
+            <h2 style="margin:0 0 10px 0; letter-spacing: 1px;">SYSTEM CONFIG</h2>
             
             <div class="rec-box">
-                <label style="color: #f00;">Global Recording Settings</label>
+                <label style="color: #f00;">Global Recording</label>
                 <div class="opt">
-                    <label>Video Format</label>
+                    <label>Format</label>
                     <select id="recFormat">
-                        <option value="video/webm;codecs=vp9">WEBM (Recommended)</option>
-                        <option value="video/mp4">MP4 (Desktop Only)</option>
+                        <option value="video/webm;codecs=vp9">WEBM (Universal)</option>
+                        <option value="video/mp4">MP4 (PC Only)</option>
                     </select>
                 </div>
                 <div class="opt">
-                    <label>Microphone</label>
+                    <label>Audio (Mic)</label>
                     <select id="micEnable">
                         <option value="no" selected>No Audio</option>
                         <option value="yes">With Audio</option>
@@ -48,36 +51,89 @@
             </div>
 
             <div class="tabs">
-                <div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A</div>
-                <div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B</div>
+                <div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A<br>(GAU_OTS)</div>
+                <div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B<br>(MEDIAN)</div>
             </div>
 
             <div class="opt">
                 <label>Resolution</label>
                 <select id="res">
-                    <option value="1280" selected>720p</option>
-                    <option value="1920">1080p</option>
-                    <option value="640">480p</option>
+                    <option value="1920">1080p (True HD)</option>
+                    <option value="1600">900p (High)</option>
+                    <option value="1280" selected>720p (Balanced)</option>
+                    <option value="1024">1024px</option>
+                    <option value="800">800px</option>
+                    <option value="640">480p (Fast)</option>
+                    <option value="480">360p (Turbo)</option>
                 </select>
             </div>
 
             <div id="panelA" class="panel active">
-                <div class="opt"><label>A. Scale</label><select id="scaleA"><option value="1.5" selected>1.5x</option></select></div>
-                <div class="opt"><label>A. Blur</label><select id="blurA"><option value="5" selected>5px</option></select></div>
-                <div class="opt"><label>A. Sense</label><select id="senseA"><option value="0.9" selected>0.9</option></select></div>
+                <div class="opt"><label>A. Scale</label>
+                    <select id="scaleA">
+                        <option value="1">1.0x</option><option value="1.2">1.2x</option>
+                        <option value="1.5" selected>1.5x</option><option value="2">2.0x</option>
+                        <option value="2.5">2.5x</option><option value="3">3.0x</option>
+                    </select>
+                </div>
+                <div class="opt"><label>A. Gaussian Blur</label>
+                    <select id="blurA">
+                        <option value="1">None</option><option value="3">3px</option>
+                        <option value="5" selected>5px</option><option value="7">7px</option>
+                        <option value="9">9px</option><option value="11">11px</option><option value="15">15px</option>
+                    </select>
+                </div>
+                <div class="opt"><label>A. Sensitivity</label>
+                    <select id="senseA">
+                        <option value="0.5">0.5 (Max)</option><option value="0.7">0.7</option>
+                        <option value="0.9" selected>0.9 (Std)</option><option value="1.1">1.1</option>
+                        <option value="1.3">1.3</option><option value="1.5">1.5</option>
+                    </select>
+                </div>
             </div>
 
             <div id="panelB" class="panel">
-                <div class="opt"><label>B. Logic</label><select id="logicB"><option value="old_code" selected>old_code_use</option><option value="median">Median</option></select></div>
-                <div class="opt"><label>B. Scale</label><select id="scaleB"><option value="2.5" selected>2.5x</option></select></div>
+                <div class="opt"><label>B. Logic</label>
+                    <select id="logicB">
+                        <option value="median">Standard Median</option>
+                        <option value="old_code" selected>old_code_use (Python)</option>
+                    </select>
+                </div>
+                <div class="opt"><label>B. Scale</label>
+                    <select id="scaleB">
+                        <option value="1">1.0x</option><option value="1.5">1.5x</option>
+                        <option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option>
+                        <option value="5">5.0x</option>
+                    </select>
+                </div>
+                <div class="opt"><label>B. Median Blur</label>
+                    <select id="blurB">
+                        <option value="1">1</option><option value="3" selected>3</option>
+                        <option value="5">5</option><option value="7">7</option><option value="9">9</option>
+                    </select>
+                </div>
+                <div class="opt"><label>B. Fixed Threshold</label>
+                    <select id="senseB">
+                        <option value="10">10 (Heavy)</option><option value="20">20</option>
+                        <option value="40" selected>40 (Std)</option><option value="60">60</option>
+                        <option value="80">80</option><option value="100">100</option>
+                    </select>
+                </div>
             </div>
 
-            <button id="bootBtn" onclick="bootApp()">BOOT SYSTEM</button>
-            <p style="font-size: 9px; color: #555;">SWIPE LEFT TO RECORD | 4-TAP SNAPSHOT</p>
+            <div class="opt"><label>Edge Thickness (k)</label>
+                <select id="kSize">
+                    <option value="1">1 (Fine)</option><option value="3" selected>3 (Std)</option>
+                    <option value="5">5 (Bold)</option><option value="7">7 (Heavy)</option>
+                </select>
+            </div>
+
+            <button id="bootBtn" onclick="bootApp()">WAITING FOR LIB...</button>
+            <div id="status" class="status">LOADING OPENCV...</div>
         </div>
     </div>
 
-    <div id="rec-indicator">REC ●</div>
+    <div id="rec-indicator">● REC</div>
     <video id="webcam" autoplay playsinline></video>
     <canvas id="outputCanvas"></canvas>
 
@@ -90,7 +146,14 @@
         let mediaRecorder, recordedChunks = [];
 
         worker = new Worker('./worker.js');
-        worker.onmessage = (e) => { if (e.data === "READY") isLibReady = true; else { ctx.putImageData(e.data, 0, 0); isProcessing = false; } };
+        worker.onmessage = (e) => {
+            if (e.data === "READY") {
+                isLibReady = true;
+                const b = document.getElementById('bootBtn');
+                b.innerText = "BOOT ENGINE"; b.classList.add('ready');
+                document.getElementById('status').innerText = "ONLINE"; document.getElementById('status').style.color = "#0f0";
+            } else { ctx.putImageData(e.data, 0, 0); isProcessing = false; }
+        };
 
         function switchPanel(p) {
             currentPanel = p;
@@ -100,24 +163,36 @@
             document.getElementById('tabB').classList.toggle('active', p==='B');
         }
 
+        async function startCamera(mode) {
+            currentFacingMode = mode;
+            if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
+            });
+            video.srcObject = stream;
+            return new Promise(r => video.onloadedmetadata = r);
+        }
+
         async function bootApp() {
+            if(!isLibReady) return;
             activeConfig = {
                 panel: currentPanel,
                 scale: parseFloat(document.getElementById(currentPanel === 'A' ? 'scaleA' : 'scaleB').value),
-                blur: parseInt(document.getElementById('blurA').value),
-                sense: parseFloat(document.getElementById('senseA').value),
+                blur: parseInt(document.getElementById(currentPanel === 'A' ? 'blurA' : 'blurB').value),
+                sense: parseFloat(document.getElementById(currentPanel === 'A' ? 'senseA' : 'senseB').value),
+                k: parseInt(document.getElementById('kSize').value),
                 oldCode: (currentPanel === 'B' && document.getElementById('logicB').value === 'old_code')
             };
+
             if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } });
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-                canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
-                canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
-                document.getElementById('dashboard').style.display = 'none';
-                canvas.style.display = 'block';
-                requestAnimationFrame(processLoop);
-            };
+            await startCamera("user");
+
+            canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
+            canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
+            document.getElementById('dashboard').style.display = 'none';
+            canvas.style.display = 'block';
+            if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+            requestAnimationFrame(processLoop);
         }
 
         async function toggleRecording() {
@@ -133,10 +208,10 @@
                 mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
                 mediaRecorder.onstop = () => {
                     const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = `laplacian_recording_${Date.now()}.webm`;
-                    link.click();
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = `laplacian_recording_${Date.now()}.webm`;
+                    a.click();
                 };
                 mediaRecorder.start();
                 isRecording = true;
@@ -149,7 +224,7 @@
         }
 
         function processLoop() {
-            if (!isProcessing && video.videoWidth > 0) {
+            if (!isProcessing && video.videoWidth > 0 && activeConfig) {
                 isProcessing = true;
                 offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
                 const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
@@ -158,25 +233,27 @@
             requestAnimationFrame(processLoop);
         }
 
-        // DESKTOP: Two-Finger Click (Right Click)
-        window.addEventListener('contextmenu', (e) => { e.preventDefault(); toggleRecording(); });
+        // DESKTOP: Two-Finger Click (Context Menu)
+        window.addEventListener('contextmenu', e => { e.preventDefault(); toggleRecording(); });
 
-        // MOBILE: Right-to-Left Swipe
-        let touchStartX = 0;
-        window.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; });
+        // MOBILE: Swipe Left to Toggle Recording
+        let touchX = 0;
+        window.addEventListener('touchstart', e => { touchX = e.changedTouches[0].screenX; });
         window.addEventListener('touchend', e => {
-            let touchEndX = e.changedTouches[0].screenX;
-            if (touchStartX - touchEndX > 100) toggleRecording(); // Swipe Left
+            if (touchX - e.changedTouches[0].screenX > 100) toggleRecording();
         });
 
-        // SNAPSHOT: 4 Taps
-        let taps = 0, tapTime;
+        // 3 Taps = Flip | 4 Taps = 7s Snapshot
+        let taps = 0, tapT;
         window.addEventListener('touchstart', () => {
-            taps++; clearTimeout(tapTime);
-            tapTime = setTimeout(() => {
+            taps++; clearTimeout(tapT);
+            tapT = setTimeout(() => {
+                if (taps === 3) startCamera(currentFacingMode === "user" ? "environment" : "user").then(() => {
+                    canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
+                    canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
+                });
                 if (taps === 4) setTimeout(() => {
-                    const link = document.createElement('a');
-                    link.download = 'snap.png'; link.href = canvas.toDataURL(); link.click();
+                    const l = document.createElement('a'); l.download = 'snap.png'; l.href = canvas.toDataURL(); l.click();
                 }, 7000);
                 taps = 0;
             }, 300);
