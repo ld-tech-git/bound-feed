@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | Absolute Master v10</title>
+    <title>Laplacian Pro | Absolute Master v13</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
@@ -19,14 +19,20 @@
         #bootBtn { background: #222; color: #444; cursor: not-allowed; margin-top: 10px; transition: 0.3s; }
         #bootBtn.ready { background: #0f0; color: #000; cursor: pointer; font-weight: bold; }
         
-        #fps-tag { position: fixed; top: 15px; left: 15px; z-index: 60; color: #0f0; display: none; background: rgba(0,0,0,0.6); padding: 8px; border: 1px solid #0f0; pointer-events: none; }
+        /* Stats Tag (FPS + Battery) */
+        #stats-tag { 
+            position: fixed; top: 15px; left: 15px; z-index: 60; color: #0f0; 
+            display: none; background: rgba(0,0,0,0.6); padding: 8px; 
+            border: 1px solid #0f0; pointer-events: none; font-size: 12px;
+            line-height: 1.4;
+        }
+        
         #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 55; color: #f00; display: none; font-weight: bold; animation: blink 1s infinite; }
         
         #fsToggle { 
             position: fixed; z-index: 80; width: 32px; height: 32px; 
             border: 1.5px solid rgba(128, 128, 128, 0.5); display: none; cursor: pointer;
-            background: rgba(0,0,0,0.2); border-radius: 4px; 
-            bottom: 25px; right: 25px;
+            background: rgba(0,0,0,0.2); border-radius: 4px; bottom: 25px; right: 25px;
         }
         #fsToggle::after {
             content: ""; position: absolute; inset: 8px;
@@ -38,14 +44,13 @@
 </head>
 <body>
 
-    <div id="fps-tag">FPS: --</div>
+    <div id="stats-tag">FPS: --<br>BAT: --%</div>
     <div id="rec-indicator">● REC</div>
     <div id="fsToggle" onclick="toggleFullScreen()"></div>
 
     <div id="dashboard">
         <div class="box">
             <h2 style="margin:0 0 10px 0;">SYSTEM CONFIG</h2>
-            
             <div style="border: 1px dashed #f00; padding: 10px; margin-bottom: 15px;">
                 <label style="color: #f00;">Recording</label>
                 <div class="opt"><select id="recFormat"><option value="video/webm;codecs=vp9">WEBM</option><option value="video/mp4">MP4</option></select></div>
@@ -74,7 +79,7 @@
 
             <div id="panelB" class="panel">
                 <div class="opt"><label>B. Logic</label><select id="logicB"><option value="old_code" selected>old_code_use</option><option value="median">Standard</option></select></div>
-                <div class="opt"><label>B. Scale</label><select id="scaleB"><option value="1">1.0x</option><option value="1.5">1.5x</option><option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option><option value="5">5.0x</option></select></div>
+                <div class="opt"><label>B. Scale</label><select id="scaleB"><option value="1">1.0x</option><option value="1.2">1.2x</option><option value="1.5">1.5x</option><option value="2">2x</option><option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option><option value="5">5.0x</option></select></div>
                 <div class="opt"><label>B. Median Blur</label><select id="blurB"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option><option value="9">9</option></select></div>
                 <div class="opt"><label>B. Threshold</label><select id="senseB"><option value="10">10</option><option value="20">20</option><option value="40" selected>40</option><option value="60">60</option><option value="80">80</option><option value="100">100</option></select></div>
             </div>
@@ -90,12 +95,21 @@
     <canvas id="outputCanvas"></canvas>
 
     <script>
-        let currentPanel = 'A', isLibReady = false, isRecording = false;
+        let currentPanel = 'A', isLibReady = false, isRecording = false, isAppRunning = false;
+        let wakeLock = null, batteryLevel = "--";
         const video = document.getElementById('webcam'), canvas = document.getElementById('outputCanvas');
         const ctx = canvas.getContext('2d', { alpha: false }), offCanvas = document.createElement('canvas');
         const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
         let worker, isProcessing = false, currentFacingMode = "user", activeConfig = null;
         let mediaRecorder, recordedChunks = [], frames = 0, lastTime = performance.now(), lastFrameSuccess = 0;
+
+        // Battery Monitor
+        if ('getBattery' in navigator) {
+            navigator.getBattery().then(batt => {
+                batteryLevel = Math.floor(batt.level * 100);
+                batt.onlevelchange = () => { batteryLevel = Math.floor(batt.level * 100); };
+            });
+        }
 
         worker = new Worker('./worker.js');
         worker.onmessage = (e) => {
@@ -105,11 +119,20 @@
                 document.getElementById('status').innerText = "ONLINE"; document.getElementById('status').style.color = "#0f0";
             } else { 
                 ctx.putImageData(e.data, 0, 0); 
+                if (canvas.style.display !== 'block') {
+                    canvas.style.display = 'block';
+                    document.getElementById('dashboard').style.display = 'none';
+                    document.getElementById('fsToggle').style.display = 'block';
+                }
                 isProcessing = false; 
                 frames++; 
                 lastFrameSuccess = performance.now(); 
             }
         };
+
+        async function requestWakeLock() {
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {}
+        }
 
         function switchPanel(p) {
             currentPanel = p;
@@ -123,7 +146,12 @@
             if(!isLibReady) return;
             if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
             
-            lastFrameSuccess = 0; // Disable watchdog during startup
+            canvas.style.display = 'none';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            lastFrameSuccess = 0;
+            isProcessing = false;
+            requestWakeLock();
 
             activeConfig = {
                 panel: currentPanel,
@@ -142,31 +170,31 @@
                 video.onloadedmetadata = () => {
                     canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
                     canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
-                    document.getElementById('dashboard').style.display = 'none';
-                    canvas.style.display = 'block';
-                    document.getElementById('fsToggle').style.display = 'block';
-                    isProcessing = false;
+                    isAppRunning = true;
                 };
-            } catch(e) { alert("Camera busy. Try again."); }
+            } catch(e) { console.error(e); }
         }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                if (isAppRunning) bootApp();
+                requestWakeLock();
+            }
+        });
 
         function processLoop() {
             const now = performance.now();
-            
-            // Watchdog: Only triggers if at least one frame has succeeded (lastFrameSuccess > 0)
             if (isProcessing && lastFrameSuccess > 0 && (now - lastFrameSuccess > 3000)) {
-                isProcessing = false; // Force reset
+                isProcessing = false;
             }
-
-            if (!isProcessing && video.readyState === 4 && activeConfig) {
+            if (isAppRunning && !isProcessing && video.readyState === 4 && activeConfig) {
                 isProcessing = true;
                 offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
                 const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
                 worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
             }
-            
             if (now - lastTime >= 1000) { 
-                document.getElementById('fps-tag').innerText = `FPS: ${frames}`; 
+                document.getElementById('stats-tag').innerHTML = `FPS: ${frames}<br>BAT: ${batteryLevel}%`; 
                 frames = 0; lastTime = now; 
             }
             requestAnimationFrame(processLoop);
@@ -197,7 +225,10 @@
             clearTimeout(fsTimer); fsTimer = setTimeout(() => { if(document.fullscreenElement) btn.style.display = 'none'; }, 3000);
 
             tapT = setTimeout(() => {
-                if (taps === 2) { const f = document.getElementById('fps-tag'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
+                if (taps === 2) { 
+                    const s = document.getElementById('stats-tag'); 
+                    s.style.display = s.style.display === 'none' ? 'block' : 'none'; 
+                }
                 if (taps === 3) { currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; bootApp(); }
                 if (taps === 4) setTimeout(() => {
                     const l = document.createElement('a'); l.download = `snap_${Date.now()}.png`; l.href = canvas.toDataURL(); l.click();
