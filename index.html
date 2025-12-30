@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Lucky window</title>
+    <title>Laplacian Pro | Absolute Master v4</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
@@ -19,124 +19,77 @@
         #bootBtn { background: #222; color: #444; cursor: not-allowed; margin-top: 10px; }
         #bootBtn.ready { background: #0f0; color: #000; cursor: pointer; font-weight: bold; }
         
+        /* UI HUD Elements */
         #fps-tag { position: fixed; top: 15px; left: 15px; z-index: 60; color: #0f0; display: none; background: rgba(0,0,0,0.6); padding: 8px; border: 1px solid #0f0; pointer-events: none; }
         #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 55; color: #f00; display: none; font-weight: bold; animation: blink 1s infinite; }
-        #fsToggle { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 70; background: rgba(0,255,0,0.3); color: #0f0; border: 1px solid #0f0; padding: 10px 20px; border-radius: 30px; display: none; cursor: pointer; font-weight: bold; }
         
+        /* Minimalist FS Icon */
+        #fsToggle { 
+            position: fixed; z-index: 80; width: 40px; height: 40px; 
+            border: 2px solid #0f0; display: none; cursor: pointer;
+            background: rgba(0,0,0,0.5); border-radius: 5px;
+        }
+        #fsToggle::after {
+            content: ""; position: absolute; inset: 8px;
+            border: 2px solid #0f0; border-style: solid none none solid; /* Top-left corner style */
+        }
+        #fsToggle.exit::after { border-style: none solid solid none; } /* Bottom-right style for exit */
+        
+        .pos-normal { bottom: 20px; right: 20px; }
+        .pos-fs { bottom: 20px; left: 20px; }
+
         @keyframes blink { 50% { opacity: 0; } }
         canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 1; }
         #webcam { display: none; }
         .status { font-size: 10px; margin-top: 10px; color: #f00; font-weight: bold; }
-        .rec-box { border: 1px dashed #f00; padding: 10px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
 
     <div id="fps-tag">FPS: --</div>
     <div id="rec-indicator">● REC</div>
-    <div id="fsToggle" onclick="toggleFullScreen()">EXIT FULLSCREEN</div>
+    <div id="fsToggle" onclick="toggleFullScreen()"></div>
 
     <div id="dashboard">
         <div class="box">
-            <h2 style="margin:0 0 10px 0; letter-spacing: 1px;">SYSTEM CONFIG</h2>
+            <h2 style="margin:0 0 10px 0;">SYSTEM CONFIG</h2>
             
-            <div class="rec-box">
-                <label style="color: #f00;">Recording Logic</label>
-                <div class="opt">
-                    <label>Format</label>
-                    <select id="recFormat">
-                        <option value="video/webm;codecs=vp9">WEBM (High Quality)</option>
-                        <option value="video/mp4">MP4 (Standard)</option>
-                    </select>
-                </div>
-                <div class="opt">
-                    <label>Microphone</label>
-                    <select id="micEnable">
-                        <option value="no" selected>No Audio</option>
-                        <option value="yes">Record Audio</option>
-                    </select>
-                </div>
+            <div style="border:1px dashed #f00; padding:10px; margin-bottom:15px;">
+                <label style="color: #f00;">Recording</label>
+                <div class="opt"><select id="recFormat"><option value="video/webm;codecs=vp9">WEBM</option><option value="video/mp4">MP4</option></select></div>
+                <div class="opt"><select id="micEnable"><option value="no">No Mic</option><option value="yes">Mic On</option></select></div>
             </div>
 
             <div class="tabs">
-                <div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A<br>(GAU_OTS)</div>
-                <div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B<br>(MEDIAN)</div>
+                <div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A</div>
+                <div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B</div>
             </div>
 
             <div class="opt">
-                <label>Input Resolution</label>
+                <label>Resolution</label>
                 <select id="res">
-                    <option value="1920">1080p (True HD)</option>
-                    <option value="1600">900p (High)</option>
-                    <option value="1280" selected>720p (Balanced)</option>
-                    <option value="1024">1024px</option>
-                    <option value="800">800px</option>
-                    <option value="640">480p (Fast)</option>
+                    <option value="1920">1080p</option><option value="1600">900p</option>
+                    <option value="1280" selected>720p</option><option value="640">480p</option>
                 </select>
             </div>
 
             <div id="panelA" class="panel active">
-                <div class="opt"><label>A. Scale</label>
-                    <select id="scaleA">
-                        <option value="1">1.0x</option><option value="1.2">1.2x</option>
-                        <option value="1.5" selected>1.5x</option><option value="2">2.0x</option>
-                        <option value="2.5">2.5x</option><option value="3">3.0x</option>
-                    </select>
-                </div>
-                <div class="opt"><label>A. Gaussian Blur</label>
-                    <select id="blurA">
-                        <option value="1">None</option><option value="3">3px</option><option value="5" selected>5px</option>
-                        <option value="7">7px</option><option value="9">9px</option><option value="11">11px</option>
-                    </select>
-                </div>
-                <div class="opt"><label>A. Otsu Sensitivity</label>
-                    <select id="senseA">
-                        <option value="0.5">0.5</option><option value="0.7">0.7</option>
-                        <option value="0.9" selected>0.9</option><option value="1.1">1.1</option>
-                        <option value="1.3">1.3</option><option value="1.5">1.5</option>
-                    </select>
-                </div>
+                <div class="opt"><label>A. Scale</label><select id="scaleA"><option value="1">1x</option><option value="1.5" selected>1.5x</option><option value="2">2x</option></select></div>
+                <div class="opt"><label>A. Blur</label><select id="blurA"><option value="3">3px</option><option value="5" selected>5px</option><option value="7">7px</option></select></div>
+                <div class="opt"><label>A. Sense</label><select id="senseA"><option value="0.7">0.7</option><option value="0.9" selected>0.9</option><option value="1.1">1.1</option></select></div>
             </div>
 
             <div id="panelB" class="panel">
-                <div class="opt"><label>B. Mode</label>
-                    <select id="logicB">
-                        <option value="old_code" selected>old_code_use (Python)</option>
-                        <option value="median">Standard Median</option>
-                    </select>
-                </div>
-                <div class="opt"><label>B. Scale</label>
-                    <select id="scaleB">
-                        <option value="1">1.0x</option><option value="1.5">1.5x</option>
-                        <option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option>
-                        <option value="5">5.0x</option>
-                    </select>
-                </div>
-                <div class="opt"><label>B. Median Blur</label>
-                    <select id="blurB">
-                        <option value="1">1</option><option value="3" selected>3</option>
-                        <option value="5">5</option><option value="7">7</option><option value="9">9</option>
-                    </select>
-                </div>
-                <div class="opt"><label>B. Fixed Threshold</label>
-                    <select id="senseB">
-                        <option value="10">10</option><option value="20">20</option>
-                        <option value="40" selected>40</option><option value="60">60</option>
-                        <option value="80">80</option><option value="100">100</option>
-                    </select>
-                </div>
+                <div class="opt"><label>B. Logic</label><select id="logicB"><option value="old_code" selected>old_code_use</option><option value="median">Median</option></select></div>
+                <div class="opt"><label>B. Scale</label><select id="scaleB"><option value="1.5">1.5x</option><option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option></select></div>
+                <div class="opt"><label>B. Blur</label><select id="blurB"><option value="3" selected>3</option><option value="5">5</option></select></div>
+                <div class="opt"><label>B. Threshold</label><select id="senseB"><option value="20">20</option><option value="40" selected>40</option><option value="60">60</option></select></div>
             </div>
 
-            <div class="opt"><label>Edge Thickness (k)</label>
-                <select id="kSize">
-                    <option value="1">1</option><option value="3" selected>3</option>
-                    <option value="5">5</option><option value="7">7</option>
-                </select>
-            </div>
+            <div class="opt"><label>k Size</label><select id="kSize"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option></select></div>
 
-            <button id="bootBtn" onclick="bootApp()">WAITING FOR LIB...</button>
-            <button onclick="toggleFullScreen()" style="margin-top:10px; background:#111;">GO FULLSCREEN</button>
-            <div id="status" class="status">LOADING OPENCV...</div>
+            <button id="bootBtn" onclick="bootApp()">LOADING LIB...</button>
+            <div id="status" class="status">OPENCV OFFLINE</div>
         </div>
     </div>
 
@@ -155,8 +108,7 @@
         worker.onmessage = (e) => {
             if (e.data === "READY") {
                 isLibReady = true;
-                const b = document.getElementById('bootBtn');
-                b.innerText = "BOOT ENGINE"; b.classList.add('ready');
+                const b = document.getElementById('bootBtn'); b.innerText = "BOOT ENGINE"; b.classList.add('ready');
                 document.getElementById('status').innerText = "ONLINE"; document.getElementById('status').style.color = "#0f0";
             } else { ctx.putImageData(e.data, 0, 0); isProcessing = false; frames++; }
         };
@@ -179,26 +131,39 @@
                 k: parseInt(document.getElementById('kSize').value),
                 oldCode: (currentPanel === 'B' && document.getElementById('logicB').value === 'old_code')
             };
-            if ('wakeLock' in navigator) await navigator.wakeLock.request('screen');
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
-            });
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } });
             video.srcObject = stream;
             video.onloadedmetadata = () => {
                 canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
                 canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
                 document.getElementById('dashboard').style.display = 'none';
                 canvas.style.display = 'block';
+                document.getElementById('fsToggle').className = 'pos-normal';
+                document.getElementById('fsToggle').style.display = 'block';
                 requestAnimationFrame(processLoop);
             };
         }
 
         function toggleFullScreen() {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-                document.getElementById('fsToggle').style.display = 'none';
-            } else { if (document.exitFullscreen) document.exitFullscreen(); }
+                document.documentElement.requestFullscreen().catch(e => console.log(e));
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
         }
+
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('fsToggle');
+            if (document.fullscreenElement) {
+                btn.style.display = 'none'; // Instant hide on entering
+                btn.classList.add('exit');
+                btn.classList.replace('pos-normal', 'pos-fs');
+            } else {
+                btn.style.display = 'block';
+                btn.classList.remove('exit');
+                btn.classList.replace('pos-fs', 'pos-normal');
+            }
+        });
 
         async function toggleRecording() {
             if (!isRecording) {
@@ -208,23 +173,14 @@
                     const audio = await navigator.mediaDevices.getUserMedia({ audio: true });
                     audio.getAudioTracks().forEach(t => stream.addTrack(t));
                 }
-                const mime = document.getElementById('recFormat').value;
-                mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported(mime) ? mime : 'video/webm' });
-                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
                 mediaRecorder.onstop = () => {
-                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(recordedChunks));
                     a.download = `laplacian_${Date.now()}.webm`; a.click();
                 };
-                mediaRecorder.start();
-                isRecording = true;
-                document.getElementById('rec-indicator').style.display = 'block';
-            } else {
-                mediaRecorder.stop();
-                isRecording = false;
-                document.getElementById('rec-indicator').style.display = 'none';
-            }
+                mediaRecorder.start(); isRecording = true; document.getElementById('rec-indicator').style.display = 'block';
+            } else { mediaRecorder.stop(); isRecording = false; document.getElementById('rec-indicator').style.display = 'none'; }
         }
 
         function processLoop() {
@@ -234,40 +190,31 @@
                 const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
                 worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
             }
-            if (performance.now() - lastTime >= 1000) {
-                document.getElementById('fps-tag').innerText = `FPS: ${frames}`;
-                frames = 0; lastTime = performance.now();
-            }
+            if (performance.now() - lastTime >= 1000) { document.getElementById('fps-tag').innerText = `FPS: ${frames}`; frames = 0; lastTime = performance.now(); }
             requestAnimationFrame(processLoop);
         }
 
         window.addEventListener('contextmenu', e => { e.preventDefault(); toggleRecording(); });
         let touchX = 0;
         window.addEventListener('touchstart', e => { touchX = e.changedTouches[0].screenX; });
-        window.addEventListener('touchend', e => {
-            if (touchX - e.changedTouches[0].screenX > 100) toggleRecording();
-        });
+        window.addEventListener('touchend', e => { if (touchX - e.changedTouches[0].screenX > 100) toggleRecording(); });
 
         let taps = 0, tapT, fsTimer;
         window.addEventListener('touchstart', () => {
             taps++; clearTimeout(tapT);
-            if (document.fullscreenElement) {
-                const btn = document.getElementById('fsToggle');
-                btn.style.display = 'block';
-                clearTimeout(fsTimer); fsTimer = setTimeout(() => { btn.style.display = 'none'; }, 3000);
-            }
+            
+            // UI visibility logic on tap
+            const btn = document.getElementById('fsToggle');
+            btn.style.display = 'block';
+            clearTimeout(fsTimer);
+            fsTimer = setTimeout(() => { if(document.fullscreenElement) btn.style.display = 'none'; }, 3000);
+
             tapT = setTimeout(() => {
-                if (taps === 2) {
-                    const f = document.getElementById('fps-tag');
-                    f.style.display = f.style.display === 'none' ? 'block' : 'none';
-                }
-                if (taps === 3) {
-                    currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
-                    bootApp();
-                }
+                if (taps === 2) { const f = document.getElementById('fps-tag'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
+                if (taps === 3) { currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; bootApp(); }
                 if (taps === 4) setTimeout(() => {
                     const l = document.createElement('a'); l.download = `snap_${Date.now()}.png`; l.href = canvas.toDataURL(); l.click();
-                }, 7000); // FIXED 7s DELAY
+                }, 7000);
                 taps = 0;
             }, 300);
         });
