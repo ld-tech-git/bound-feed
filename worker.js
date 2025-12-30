@@ -1,4 +1,4 @@
-// Ensure this URL is reachable
+// Load OpenCV via CDN
 importScripts('https://docs.opencv.org/4.10.0/opencv.js');
 
 cv['onRuntimeInitialized'] = () => {
@@ -19,11 +19,10 @@ onmessage = function(e) {
     cv.GaussianBlur(gray, blurred, new cv.Size(blur, blur), 0);
     cv.Laplacian(blurred, edges, cv.CV_8U, kSize);
     
-    // Otsu can fail if the image is 100% black
     try {
         cv.threshold(edges, edges, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
         src.copyTo(mask, edges);
-    } catch(e) { /* Fallback if threshold fails */ }
+    } catch(err) { }
 
     const output = new ImageData(new Uint8ClampedArray(mask.data), mask.cols, mask.rows);
     postMessage(output, [output.data.buffer]);
