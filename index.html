@@ -3,33 +3,38 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | v22 Expanded</title>
+    <title>Laplacian Pro | v25 Stable Master</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
         .box { border: 1px solid #0f0; padding: 20px; background: #1a1a1a; width: 360px; border-radius: 15px; text-align: center; box-shadow: 0 0 20px rgba(0,255,0,0.3); }
         .tabs { display: flex; gap: 5px; margin-bottom: 15px; }
-        .tab { flex: 1; padding: 12px; border: 1px solid #0f0; cursor: pointer; font-size: 11px; opacity: 0.4; transition: 0.3s; }
+        .tab { flex: 1; padding: 12px; border: 1px solid #0f0; cursor: pointer; font-size: 11px; opacity: 0.4; }
         .tab.active { opacity: 1; background: #0f0; color: #000; font-weight: bold; }
         .panel { display: none; border-top: 1px solid #333; padding-top: 10px; }
         .panel.active { display: block; }
         .opt { margin-bottom: 12px; text-align: left; }
         label { font-size: 10px; color: #888; display: block; margin-bottom: 4px; text-transform: uppercase; }
         select, button { width: 100%; padding: 12px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; border-radius: 5px; font-size: 13px; }
-        #bootBtn { background: #222; color: #444; cursor: not-allowed; margin-top: 10px; }
+        #bootBtn { background: #222; color: #444; margin-top: 10px; }
         #bootBtn.ready { background: #0f0; color: #000; cursor: pointer; font-weight: bold; }
         
-        #stats-tag { position: fixed; top: 15px; left: 15px; z-index: 200; color: #0f0; display: none; background: rgba(0,0,0,0.6); padding: 8px; border: 1px solid #0f0; pointer-events: none; font-size: 11px; }
+        /* Eye-Safe Grey UI Elements */
+        #stats-tag { 
+            position: fixed; top: 15px; left: 15px; z-index: 200; 
+            color: #888; display: none; background: rgba(0,0,0,0.4); 
+            padding: 8px; border: 1px solid #444; pointer-events: none; font-size: 11px; 
+        }
         #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 150; color: #f00; display: none; font-weight: bold; animation: blink 1s infinite; }
         
         #fsToggle { 
             position: fixed; bottom: 30px; right: 30px; z-index: 180; 
-            width: 44px; height: 44px; border: 2px solid #0f0; 
-            display: none; background: rgba(0,0,0,0.5); border-radius: 8px;
+            width: 44px; height: 44px; border: 2px solid #555; 
+            display: none; background: rgba(0,0,0,0.3); border-radius: 8px;
         }
         #fsToggle::after {
             content: ""; position: absolute; top: 14px; left: 14px; 
-            width: 12px; height: 12px; border: 2px solid #0f0; border-style: solid none none solid;
+            width: 12px; height: 12px; border: 2px solid #888; border-style: solid none none solid;
         }
 
         canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 10; display: none; background: #000; }
@@ -59,88 +64,30 @@
             </div>
 
             <div class="opt">
-                <label>Input Resolution</label>
+                <label>Resolution</label>
                 <select id="res">
                     <option value="3840">2160p (4K)</option>
-                    <option value="1920">1080p (FHD)</option>
-                    <option value="1600">900p (HD+)</option>
-                    <option value="1280" selected>720p (HD)</option>
-                    <option value="1024">1024px</option>
-                    <option value="800">800px</option>
-                    <option value="640">480p (SD)</option>
+                    <option value="1920">1080p</option>
+                    <option value="1280" selected>720p</option>
+                    <option value="640">480p</option>
                 </select>
             </div>
 
             <div id="panelA" class="panel active">
-                <div class="opt">
-                    <label>A. Scale Factor</label>
-                    <select id="scaleA">
-                        <option value="1.0">1.0x</option><option value="1.2">1.2x</option>
-                        <option value="1.5" selected>1.5x</option><option value="1.8">1.8x</option>
-                        <option value="2.0">2.0x</option><option value="2.5">2.5x</option>
-                        <option value="3.0">3.0x</option>
-                    </select>
-                </div>
-                <div class="opt">
-                    <label>A. Gaussian Blur</label>
-                    <select id="blurA">
-                        <option value="1">None</option><option value="3">3px</option>
-                        <option value="5" selected>5px</option><option value="7">7px</option>
-                        <option value="9">9px</option><option value="11">11px</option>
-                        <option value="15">15px</option><option value="21">21px</option>
-                    </select>
-                </div>
-                <div class="opt">
-                    <label>A. Sensitivity</label>
-                    <select id="senseA">
-                        <option value="0.3">0.3 (Deep)</option><option value="0.5">0.5</option>
-                        <option value="0.7">0.7</option><option value="0.9" selected>0.9</option>
-                        <option value="1.1">1.1</option><option value="1.3">1.3</option>
-                        <option value="1.5">1.5 (High)</option>
-                    </select>
-                </div>
+                <div class="opt"><label>A. Scale</label><select id="scaleA"><option value="1.0">1.0x</option><option value="1.2">1.2x</option><option value="1.5" selected>1.5x</option><option value="2.0">2.0x</option><option value="3.0">3.0x</option></select></div>
+                <div class="opt"><label>A. Blur</label><select id="blurA"><option value="3">3px</option><option value="5" selected>5px</option><option value="11">11px</option><option value="21">21px</option></select></div>
+                <div class="opt"><label>A. Sense</label><select id="senseA"><option value="0.5">0.5</option><option value="0.7">0.7</option><option value="0.9" selected>0.9</option><option value="1.1">1.1</option><option value="1.5">1.5</option></select></div>
             </div>
 
             <div id="panelB" class="panel">
-                <div class="opt"><label>B. Logic</label><select id="logicB"><option value="old_code" selected>old_code_use</option><option value="median">Standard Median</option></select></div>
-                <div class="opt">
-                    <label>B. Scale Factor</label>
-                    <select id="scaleB">
-                        <option value="1.0">1.0x</option><option value="1.2">1.2x</option>
-                        <option value="1.5">1.5x</option><option value="2.0">2.0x</option>
-                        <option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option>
-                        <option value="5.0">5.0x</option><option value="8.0">8.0x</option>
-                    </select>
-                </div>
-                <div class="opt">
-                    <label>B. Median Radius</label>
-                    <select id="blurB">
-                        <option value="1">1</option><option value="3" selected>3</option>
-                        <option value="5">5</option><option value="7">7</option>
-                        <option value="9">9</option>
-                    </select>
-                </div>
-                <div class="opt">
-                    <label>B. Threshold</label>
-                    <select id="senseB">
-                        <option value="5">5</option><option value="15">15</option>
-                        <option value="30">30</option><option value="40" selected>40</option>
-                        <option value="60">60</option><option value="80">80</option>
-                        <option value="120">120</option>
-                    </select>
-                </div>
+                <div class="opt"><label>B. Logic</label><select id="logicB"><option value="old_code" selected>old_code</option><option value="median">Median</option></select></div>
+                <div class="opt"><label>B. Scale</label><select id="scaleB"><option value="1.2">1.2x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option><option value="2.5" selected>2.5x</option><option value="5.0">5.0x</option></select></div>
+                <div class="opt"><label>B. Median</label><select id="blurB"><option value="3" selected>3</option><option value="7">7</option><option value="9">9</option></select></div>
+                <div class="opt"><label>B. Threshold</label><select id="senseB"><option value="20">20</option><option value="40" selected>40</option><option value="80">80</option></select></div>
             </div>
 
-            <div class="opt">
-                <label>k-Thickness</label>
-                <select id="kSize">
-                    <option value="1">1 (Fine)</option><option value="3" selected>3</option>
-                    <option value="5">5</option><option value="7">7 (Thick)</option>
-                    <option value="9">9</option>
-                </select>
-            </div>
-
-            <button id="bootBtn" onclick="bootApp()">WAITING FOR WORKER...</button>
+            <div class="opt"><label>k Thickness</label><select id="kSize"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option></select></div>
+            <button id="bootBtn" onclick="bootApp()">WAITING...</button>
         </div>
     </div>
 
@@ -148,12 +95,12 @@
     <canvas id="outputCanvas"></canvas>
 
     <script>
-        let currentPanel = 'A', isLibReady = false, isRecording = false;
+        let currentPanel = 'A', isRecording = false, worker = null;
         const video = document.getElementById('webcam'), canvas = document.getElementById('outputCanvas');
         const ctx = canvas.getContext('2d', { alpha: false }), offCanvas = document.createElement('canvas');
         const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-        let worker, isProcessing = false, currentFacingMode = "user", activeConfig = null;
-        let mediaRecorder, recordedChunks = [], frames = 0, lastTime = performance.now(), batteryLevel = "--";
+        let isProcessing = false, currentFacingMode = "user", activeConfig = null;
+        let recordedChunks = [], mediaRecorder = null, frames = 0, lastTime = performance.now(), batteryLevel = "--";
 
         if ('getBattery' in navigator) {
             navigator.getBattery().then(batt => {
@@ -162,18 +109,21 @@
             });
         }
 
-        worker = new Worker('./worker.js');
-        worker.onmessage = (e) => {
-            if (e.data === "READY") {
-                isLibReady = true; 
-                document.getElementById('bootBtn').innerText = "BOOT ENGINE";
-                document.getElementById('bootBtn').classList.add('ready');
-            } else {
-                ctx.putImageData(e.data, 0, 0);
-                isProcessing = false;
-                frames++;
-            }
-        };
+        function initWorker() {
+            if (worker) worker.terminate();
+            worker = new Worker('./worker.js');
+            worker.onmessage = (e) => {
+                if (e.data === "READY") {
+                    const btn = document.getElementById('bootBtn');
+                    btn.innerText = "BOOT ENGINE"; btn.classList.add('ready');
+                } else {
+                    ctx.putImageData(e.data, 0, 0);
+                    isProcessing = false;
+                    frames++;
+                }
+            };
+        }
+        initWorker();
 
         function switchPanel(p) {
             currentPanel = p;
@@ -184,10 +134,10 @@
         }
 
         async function bootApp() {
-            if(!isLibReady) return;
             isProcessing = true; 
             if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
-            
+            initWorker(); // Force clean worker state for the new camera
+
             activeConfig = {
                 panel: currentPanel,
                 scale: parseFloat(document.getElementById(currentPanel === 'A' ? 'scaleA' : 'scaleB').value),
@@ -197,20 +147,21 @@
                 oldCode: (currentPanel === 'B' && document.getElementById('logicB').value === 'old_code')
             };
 
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
-                });
-                video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
-                    canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
-                    isProcessing = false;
-                    document.getElementById('dashboard').style.display = 'none';
-                    canvas.style.display = 'block';
-                    showFsToggle();
-                };
-            } catch(e) { isProcessing = false; alert("Camera Error"); }
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
+            });
+            video.srcObject = stream;
+            
+            const run = () => {
+                canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
+                canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
+                isProcessing = false;
+                document.getElementById('dashboard').style.display = 'none';
+                canvas.style.display = 'block';
+                showFsToggle();
+            };
+            video.onloadedmetadata = run;
+            setTimeout(() => { if(isProcessing) run(); }, 700);
         }
 
         function processLoop() {
@@ -241,7 +192,6 @@
             else document.exitFullscreen();
         }
 
-        // --- Gestures ---
         let taps = 0, tapT, touchStartX = 0;
         window.addEventListener('touchstart', (e) => {
             showFsToggle();
@@ -252,10 +202,10 @@
                     const s = document.getElementById('stats-tag');
                     s.style.display = s.style.display === 'none' ? 'block' : 'none';
                 }
-                if (taps === 3) { currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; bootApp(); }
+                if (taps === 3) { currentFacingMode = (currentFacingMode === "user" ? "environment" : "user"); bootApp(); }
                 if (taps === 4) {
                     const link = document.createElement('a');
-                    link.download = `laplacian_snap_${Date.now()}.png`;
+                    link.download = `snap_${Date.now()}.png`;
                     link.href = canvas.toDataURL();
                     link.click();
                 }
@@ -279,7 +229,7 @@
                 mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
                 mediaRecorder.onstop = () => {
                     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(recordedChunks));
-                    a.download = `laplacian_rec_${Date.now()}.webm`; a.click();
+                    a.download = `rec_${Date.now()}.webm`; a.click();
                 };
                 mediaRecorder.start(); isRecording = true; document.getElementById('rec-indicator').style.display = 'block';
             } else { mediaRecorder.stop(); isRecording = false; document.getElementById('rec-indicator').style.display = 'none'; }
