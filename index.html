@@ -3,17 +3,16 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian HD: Zero-Blink</title>
+    <title>Laplacian Pro: Clean Edition</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; }
-        #dashboard { position: fixed; inset: 0; z-index: 100; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .box { border: 1px solid #0f0; padding: 25px; background: #0a0a0a; width: 320px; text-align: center; border-radius: 12px; }
-        .opt { margin-bottom: 15px; text-align: left; }
-        label { font-size: 10px; color: #888; text-transform: uppercase; }
-        select, button { width: 100%; padding: 12px; margin-top: 5px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; }
-        #fps-tag { position: fixed; top: 15px; right: 15px; z-index: 50; font-size: 14px; background: rgba(0,0,0,0.6); padding: 8px; display: none; border: 1px solid #0f0; }
+        #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .box { border: 1px solid #0f0; padding: 25px; background: #1a1a1a; width: 320px; text-align: center; border-radius: 15px; box-shadow: 0 0 20px rgba(0,255,0,0.2); }
+        .opt { margin-bottom: 20px; text-align: left; }
+        label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+        select, button { width: 100%; padding: 12px; margin-top: 5px; background: #000; color: #0f0; border: 1px solid #0f0; font-family: monospace; border-radius: 5px; }
+        #fps-tag { position: fixed; top: 15px; right: 15px; z-index: 50; font-size: 14px; background: rgba(0,0,0,0.6); padding: 8px; display: none; border: 1px solid #0f0; pointer-events: none; }
         #timer { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 120px; z-index: 60; display: none; color: #fff; font-weight: bold; }
-        /* Visible Canvas */
         #outputCanvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 1; }
         #webcam { display: none; }
     </style>
@@ -22,33 +21,33 @@
 
     <div id="dashboard">
         <div class="box">
-            <h3 style="margin-top:0">SYSTEM SETUP</h3>
+            <h2 style="margin:0 0 20px 0;">SYSTEM CONFIG</h2>
             <div class="opt">
-                <label>1. Input Resolution</label>
+                <label>Input Quality</label>
                 <select id="resSelect">
                     <option value="1920">1080p (True HD)</option>
-                    <option value="1280" selected>720p (HD)</option>
-                    <option value="640">480p (SD)</option>
+                    <option value="1280" selected>720p (High)</option>
+                    <option value="640">480p (Fast)</option>
                 </select>
             </div>
             <div class="opt">
-                <label>2. Processing Scale</label>
+                <label>Processing Scale (Smoothness)</label>
                 <select id="chunkSelect">
-                    <option value="1">1x (Sharpest)</option>
-                    <option value="1.5" selected>1.5x (Balanced)</option>
-                    <option value="2">2x (Smoother)</option>
+                    <option value="1">Quality (Lower FPS)</option>
+                    <option value="1.5" selected>Balanced (Standard)</option>
+                    <option value="2.5">Turbo (Highest FPS)</option>
                 </select>
             </div>
             <div class="opt">
-                <label>3. Target FPS</label>
+                <label>Target FPS</label>
                 <select id="fpsSelect">
                     <option value="15">15 FPS</option>
                     <option value="24" selected>24 FPS</option>
                     <option value="30">30 FPS</option>
                 </select>
             </div>
-            <button id="bootBtn" disabled onclick="bootApp()">BOOT FULLSCREEN</button>
-            <p id="status" style="font-size: 10px; color: #f00;">LOADING CORE...</p>
+            <button id="bootBtn" disabled onclick="bootApp()">BOOT SYSTEM</button>
+            <p id="status" style="font-size: 10px; color: #f00; margin-top: 15px;">LOADING CORE...</p>
         </div>
     </div>
 
@@ -61,11 +60,8 @@
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('outputCanvas');
         const ctx = canvas.getContext('2d', { alpha: false });
-        
-        // HIDDEN OFFSCREEN CANVAS (Prevents Blinking)
         const offCanvas = document.createElement('canvas');
         const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-
         const bootBtn = document.getElementById('bootBtn');
         const status = document.getElementById('status');
         
@@ -75,11 +71,10 @@
         worker = new Worker('worker.js');
         worker.onmessage = (e) => {
             if (e.data === "READY") {
-                status.innerText = "CORE READY";
+                status.innerText = "CORE ENGINE LOADED";
                 status.style.color = "#0f0";
                 bootBtn.disabled = false;
             } else {
-                // Only now do we draw to the visible screen
                 ctx.putImageData(e.data, 0, 0);
                 isProcessing = false;
                 frames++;
@@ -101,11 +96,8 @@
             video.onloadedmetadata = () => {
                 const w = video.videoWidth / chunkScale;
                 const h = video.videoHeight / chunkScale;
-                
-                // Set both visible and hidden canvas sizes
                 canvas.width = offCanvas.width = w;
                 canvas.height = offCanvas.height = h;
-                
                 document.getElementById('dashboard').style.display = 'none';
                 canvas.style.display = 'block';
                 document.getElementById('fps-tag').style.display = 'block';
@@ -118,11 +110,8 @@
             if (now - lastFrameTime >= (1000 / targetFPS) && !isProcessing) {
                 isProcessing = true;
                 lastFrameTime = now;
-                
-                // DRAW TO HIDDEN CANVAS ONLY
                 offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
                 const imageData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-                
                 worker.postMessage(imageData, [imageData.data.buffer]);
                 
                 if (now - lastTime >= 1000) {
@@ -133,7 +122,7 @@
             requestAnimationFrame(processFrame);
         }
 
-        // Gestures
+        // --- GESTURES ---
         let tapCount = 0, tapTimer;
         window.addEventListener('touchstart', () => {
             tapCount++;
@@ -156,7 +145,7 @@
                     clearInterval(countdown);
                     timerEl.style.display = 'none';
                     const link = document.createElement('a');
-                    link.download = `edge_detect.png`;
+                    link.download = `snapshot.png`;
                     link.href = canvas.toDataURL();
                     link.click();
                 }
