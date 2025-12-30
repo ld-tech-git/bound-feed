@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | v40 Master Verified</title>
+    <title>Laplacian Pro | v45 Final Master</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
@@ -36,12 +36,18 @@
     <div id="dashboard">
         <div class="box">
             <h2 style="margin:0 0 10px 0;">SYSTEM CONFIG</h2>
+            
             <div style="border: 1px dashed #f00; padding: 10px; margin-bottom: 15px;">
                 <label style="color: #f00;">Capture Control</label>
                 <div class="opt"><select id="recFormat"><option value="video/webm;codecs=vp9">WEBM (VP9)</option><option value="video/mp4">MP4 (H.264)</option></select></div>
                 <div class="opt"><select id="micEnable"><option value="no">No Audio</option><option value="yes">Use Microphone</option></select></div>
             </div>
-            <div class="tabs"><div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A</div><div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B</div></div>
+
+            <div class="tabs">
+                <div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A</div>
+                <div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B</div>
+            </div>
+
             <div class="opt">
                 <label>Resolution</label>
                 <select id="res">
@@ -51,6 +57,7 @@
                     <option value="480">360p</option>
                 </select>
             </div>
+
             <div id="panelA" class="panel active">
                 <div class="opt"><label>A. Scale</label><select id="scaleA"><option value="1.0">1.0x</option><option value="1.5" selected>1.5x</option><option value="2.0">2.0x</option><option value="3.0">3.0x</option></select></div>
                 <div class="opt"><label>A. Blur</label><select id="blurA">
@@ -60,6 +67,7 @@
                 </select></div>
                 <div class="opt"><label>A. Sense</label><select id="senseA"><option value="0.3">0.3</option><option value="0.7">0.7</option><option value="0.9" selected>0.9</option><option value="1.5">1.5</option></select></div>
             </div>
+
             <div id="panelB" class="panel">
                 <div class="opt"><label>B. Logic</label><select id="logicB"><option value="old_code" selected>old_code</option><option value="median">Median</option></select></div>
                 <div class="opt"><label>B. Scale</label><select id="scaleB">
@@ -67,13 +75,18 @@
                     <option value="1.8">1.8x</option><option value="2.0">2.0x</option><option value="2.5" selected>2.5x</option>
                     <option value="3.5">3.5x</option>
                 </select></div>
-                <div class="opt"><label>B. Filter Strength</label><select id="blurB"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option><option value="9">9</option><option value="11">11</option></select></div>
+                <div class="opt"><label>B. Filter Strength</label><select id="blurB">
+                    <option value="1">1</option><option value="3" selected>3</option><option value="5">5</option>
+                    <option value="7">7</option><option value="9">9</option><option value="11">11</option>
+                </select></div>
                 <div class="opt"><label>B. Threshold</label><select id="senseB">
-                    <option value="5">5</option><option value="10">10</option><option value="15">15</option><option value="20">20</option>
-                    <option value="25">25</option><option value="30">30</option><option value="40" selected>40</option>
-                    <option value="50">50</option><option value="60">60</option><option value="80">80</option><option value="100">100</option>
+                    <option value="5">5</option><option value="10">10</option><option value="15">15</option>
+                    <option value="20">20</option><option value="25">25</option><option value="30">30</option>
+                    <option value="40" selected>40</option><option value="50">50</option><option value="60">60</option>
+                    <option value="80">80</option><option value="100">100</option>
                 </select></div>
             </div>
+
             <div class="opt"><label>k Thickness</label><select id="kSize"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="9">9</option></select></div>
             <button id="bootBtn" onclick="bootApp()">BOOT ENGINE</button>
         </div>
@@ -121,6 +134,7 @@
             if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
             resetWorker();
             try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch(e){}
+            
             activeConfig = {
                 panel: currentPanel,
                 scale: parseFloat(document.getElementById('scale'+currentPanel).value),
@@ -129,6 +143,7 @@
                 k: parseInt(document.getElementById('kSize').value),
                 oldCode: (currentPanel === 'B' && document.getElementById('logicB').value === 'old_code')
             };
+
             const stream = await navigator.mediaDevices.getUserMedia({ 
                 video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
             });
@@ -153,7 +168,7 @@
                 if (video.readyState === 4) {
                     offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
                     const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-                    worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
+                    worker.postMessage({ img: imgData, ...activeConfig }, [imgData.data.buffer]);
                 }
             }
             if (now - lastTime >= 1000) {
