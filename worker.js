@@ -5,7 +5,7 @@ cv['onRuntimeInitialized'] = () => { postMessage("READY"); };
 onmessage = function(e) {
     if (e.data === "READY" || !cv.Mat) return;
 
-    const { img, panel, blur, k, sense, isFront } = e.data;
+    const { img, panel, blur, k, sense, isFront, oldCode } = e.data;
     let src = cv.matFromImageData(img);
     if (isFront) cv.flip(src, src, 1);
 
@@ -16,28 +16,23 @@ onmessage = function(e) {
     let edges = new cv.Mat();
 
     if (panel === 'A') {
-        // PANEL A: Gaussian + Normalize + Otsu
         cv.normalize(gray, gray, 0, 255, cv.NORM_MINMAX);
-        if (blur > 1) {
-            let ksize = new cv.Size(blur, blur);
-            cv.GaussianBlur(gray, blurred, ksize, 0);
-        } else {
-            gray.copyTo(blurred);
-        }
+        cv.GaussianBlur(gray, blurred, new cv.Size(blur, blur), 0);
         cv.Laplacian(blurred, edges, cv.CV_8U, k);
         let otsuVal = cv.threshold(edges, new cv.Mat(), 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
         cv.threshold(edges, edges, otsuVal * sense, 255, cv.THRESH_BINARY);
     } else {
-        // PANEL B: Median + Fixed
-        if (blur > 1) {
-            // Median blur kernel must be odd
+        if (oldCode) {
+            // Logic from your shared Python Code
+            cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+            cv.Laplacian(blurred, edges, cv.CV_8U, 5);
+            cv.threshold(edges, edges, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
+        } else {
             let b = blur % 2 === 0 ? blur + 1 : blur;
             cv.medianBlur(gray, blurred, b);
-        } else {
-            gray.copyTo(blurred);
+            cv.Laplacian(blurred, edges, cv.CV_8U, k);
+            cv.threshold(edges, edges, sense, 255, cv.THRESH_BINARY);
         }
-        cv.Laplacian(blurred, edges, cv.CV_8U, k);
-        cv.threshold(edges, edges, sense, 255, cv.THRESH_BINARY);
     }
 
     let mask = new cv.Mat(src.rows, src.cols, cv.CV_8UC4, [0, 0, 0, 255]);
@@ -46,6 +41,5 @@ onmessage = function(e) {
     const output = new ImageData(new Uint8ClampedArray(mask.data), mask.cols, mask.rows);
     postMessage(output, [output.data.buffer]);
 
-    // Memory Cleanup
     src.delete(); gray.delete(); blurred.delete(); edges.delete(); mask.delete();
 };
