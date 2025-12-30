@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | v25 Stable Master</title>
+    <title>Laplacian Pro | v26 Full Master</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
@@ -19,23 +19,11 @@
         #bootBtn { background: #222; color: #444; margin-top: 10px; }
         #bootBtn.ready { background: #0f0; color: #000; cursor: pointer; font-weight: bold; }
         
-        /* Eye-Safe Grey UI Elements */
-        #stats-tag { 
-            position: fixed; top: 15px; left: 15px; z-index: 200; 
-            color: #888; display: none; background: rgba(0,0,0,0.4); 
-            padding: 8px; border: 1px solid #444; pointer-events: none; font-size: 11px; 
-        }
+        /* UI Elements - Eye-Safe Grey */
+        #stats-tag { position: fixed; top: 15px; left: 15px; z-index: 200; color: #888; display: none; background: rgba(0,0,0,0.4); padding: 8px; border: 1px solid #444; pointer-events: none; font-size: 11px; }
         #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 150; color: #f00; display: none; font-weight: bold; animation: blink 1s infinite; }
-        
-        #fsToggle { 
-            position: fixed; bottom: 30px; right: 30px; z-index: 180; 
-            width: 44px; height: 44px; border: 2px solid #555; 
-            display: none; background: rgba(0,0,0,0.3); border-radius: 8px;
-        }
-        #fsToggle::after {
-            content: ""; position: absolute; top: 14px; left: 14px; 
-            width: 12px; height: 12px; border: 2px solid #888; border-style: solid none none solid;
-        }
+        #fsToggle { position: fixed; bottom: 30px; right: 30px; z-index: 180; width: 44px; height: 44px; border: 2px solid #555; display: none; background: rgba(0,0,0,0.3); border-radius: 8px; }
+        #fsToggle::after { content: ""; position: absolute; top: 14px; left: 14px; width: 12px; height: 12px; border: 2px solid #888; border-style: solid none none solid; }
 
         canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; z-index: 10; display: none; background: #000; }
         #webcam { position: absolute; opacity: 0; pointer-events: none; z-index: -1; visibility: hidden; }
@@ -53,9 +41,9 @@
             <h2 style="margin:0 0 10px 0;">SYSTEM CONFIG</h2>
             
             <div style="border: 1px dashed #f00; padding: 10px; margin-bottom: 15px;">
-                <label style="color: #f00;">Capture Control</label>
+                <label style="color: #f00;">Capture Logic</label>
                 <div class="opt"><select id="recFormat"><option value="video/webm;codecs=vp9">WEBM (VP9)</option><option value="video/mp4">MP4 (H.264)</option></select></div>
-                <div class="opt"><select id="micEnable"><option value="no">Mute Audio</option><option value="yes">Enable Mic</option></select></div>
+                <div class="opt"><select id="micEnable"><option value="no">No Audio</option><option value="yes">Use Microphone</option></select></div>
             </div>
 
             <div class="tabs">
@@ -64,30 +52,35 @@
             </div>
 
             <div class="opt">
-                <label>Resolution</label>
+                <label>Target Resolution</label>
                 <select id="res">
                     <option value="3840">2160p (4K)</option>
-                    <option value="1920">1080p</option>
-                    <option value="1280" selected>720p</option>
-                    <option value="640">480p</option>
+                    <option value="1920">1080p Full HD</option>
+                    <option value="1600">900p HD+</option>
+                    <option value="1280" selected>720p HD</option>
+                    <option value="1024">1024px</option>
+                    <option value="800">800px</option>
+                    <option value="640">480p SD</option>
+                    <option value="480">360p</option>
                 </select>
             </div>
 
             <div id="panelA" class="panel active">
-                <div class="opt"><label>A. Scale</label><select id="scaleA"><option value="1.0">1.0x</option><option value="1.2">1.2x</option><option value="1.5" selected>1.5x</option><option value="2.0">2.0x</option><option value="3.0">3.0x</option></select></div>
-                <div class="opt"><label>A. Blur</label><select id="blurA"><option value="3">3px</option><option value="5" selected>5px</option><option value="11">11px</option><option value="21">21px</option></select></div>
-                <div class="opt"><label>A. Sense</label><select id="senseA"><option value="0.5">0.5</option><option value="0.7">0.7</option><option value="0.9" selected>0.9</option><option value="1.1">1.1</option><option value="1.5">1.5</option></select></div>
+                <div class="opt"><label>A. Scale Factor</label><select id="scaleA"><option value="1.0">1.0x</option><option value="1.2">1.2x</option><option value="1.5" selected>1.5x</option><option value="1.8">1.8x</option><option value="2.0">2.0x</option><option value="2.5">2.5x</option><option value="3.0">3.0x</option></select></div>
+                <div class="opt"><label>A. Blur Radius</label><select id="blurA"><option value="1">None</option><option value="3">3px</option><option value="5" selected>5px</option><option value="7">7px</option><option value="9">9px</option><option value="11">11px</option><option value="15">15px</option><option value="21">21px</option></select></div>
+                <div class="opt"><label>A. Gain Sensitivity</label><select id="senseA"><option value="0.3">0.3</option><option value="0.5">0.5</option><option value="0.7">0.7</option><option value="0.9" selected>0.9</option><option value="1.1">1.1</option><option value="1.3">1.3</option><option value="1.5">1.5</option></select></div>
             </div>
 
             <div id="panelB" class="panel">
-                <div class="opt"><label>B. Logic</label><select id="logicB"><option value="old_code" selected>old_code</option><option value="median">Median</option></select></div>
-                <div class="opt"><label>B. Scale</label><select id="scaleB"><option value="1.2">1.2x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option><option value="2.5" selected>2.5x</option><option value="5.0">5.0x</option></select></div>
-                <div class="opt"><label>B. Median</label><select id="blurB"><option value="3" selected>3</option><option value="7">7</option><option value="9">9</option></select></div>
-                <div class="opt"><label>B. Threshold</label><select id="senseB"><option value="20">20</option><option value="40" selected>40</option><option value="80">80</option></select></div>
+                <div class="opt"><label>B. Logic Engine</label><select id="logicB"><option value="old_code" selected>old_code_use</option><option value="median">Standard Median</option></select></div>
+                <div class="opt"><label>B. Scale Factor</label><select id="scaleB"><option value="1.0">1.0x</option><option value="1.2">1.2x</option><option value="1.5">1.5x</option><option value="2.0">2.0x</option><option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option><option value="5.0">5.0x</option><option value="8.0">8.0x</option></select></div>
+                <div class="opt"><label>B. Filter Strength</label><select id="blurB"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option><option value="9">9</option></select></div>
+                <div class="opt"><label>B. Threshold</label><select id="senseB"><option value="5">5</option><option value="15">15</option><option value="30">30</option><option value="40" selected>40</option><option value="60">60</option><option value="80">80</option><option value="120">120</option></select></div>
             </div>
 
-            <div class="opt"><label>k Thickness</label><select id="kSize"><option value="1">1</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option></select></div>
-            <button id="bootBtn" onclick="bootApp()">WAITING...</button>
+            <div class="opt"><label>Global k-Thickness</label><select id="kSize"><option value="1">1 (Fine)</option><option value="3" selected>3</option><option value="5">5</option><option value="7">7</option><option value="9">9 (Thick)</option></select></div>
+
+            <button id="bootBtn" onclick="bootApp()">WAITING FOR WORKER...</button>
         </div>
     </div>
 
@@ -136,7 +129,7 @@
         async function bootApp() {
             isProcessing = true; 
             if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
-            initWorker(); // Force clean worker state for the new camera
+            initWorker(); // Critical fix: resets worker state on every flip
 
             activeConfig = {
                 panel: currentPanel,
@@ -161,7 +154,7 @@
                 showFsToggle();
             };
             video.onloadedmetadata = run;
-            setTimeout(() => { if(isProcessing) run(); }, 700);
+            setTimeout(() => { if(isProcessing) run(); }, 800);
         }
 
         function processLoop() {
