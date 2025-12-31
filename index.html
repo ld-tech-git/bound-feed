@@ -1,19 +1,28 @@
-<script>
-/* ================= SAFE BOOTSTRAP ================= */
-let currentPanel = 'A';
-let isLibReady = false;
-let currentFacingMode = "user";
-let activeConfig = null;
-
+/* ================= DOM BINDS (SAFE) ================= */
 const video = document.getElementById('webcam');
 const canvas = document.getElementById('outputCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
+
 const offCanvas = document.createElement('canvas');
 const offCtx = offCanvas.getContext('2d');
 
+const bootBtn   = document.getElementById('bootBtn');
+const status    = document.getElementById('status');
+const dashboard = document.getElementById('dashboard');
+const fpsTag    = document.getElementById('fps-tag');
+const fsToggle  = document.getElementById('fsToggle');
+const logicB    = document.getElementById('logicB');
+const res       = document.getElementById('res');
+
+/* ================= STATE ================= */
 let worker = null;
-let frameQueue = [];
+let isLibReady = false;
 let isProcessing = false;
+let frameQueue = [];
+
+let currentPanel = 'A';
+let currentFacingMode = 'user';
+let activeConfig = null;
 
 let frames = 0;
 let lastTime = performance.now();
@@ -27,21 +36,21 @@ function initWorker() {
     worker = new Worker('./worker.js');
 
     worker.onmessage = e => {
-      if (e.data === "READY") {
+      if (e.data === 'READY') {
         isLibReady = true;
-        bootBtn.innerText = "BOOT ENGINE";
+        bootBtn.innerText = 'BOOT ENGINE';
         bootBtn.classList.add('ready');
-        status.innerText = "ONLINE";
-        status.style.color = "#0f0";
+        status.innerText = 'ONLINE';
+        status.style.color = '#0f0';
         return;
       }
 
-      if (e.data === "PONG") {
+      if (e.data === 'PONG') {
         lastWorkerResponse = performance.now();
         return;
       }
 
-      if (e.data === "RECOVER") {
+      if (e.data === 'RECOVER') {
         isProcessing = false;
         frameQueue.length = 0;
         return;
@@ -52,15 +61,15 @@ function initWorker() {
       isProcessing = false;
       lastWorkerResponse = performance.now();
     };
+
   } catch (err) {
-    console.error("Worker init failed", err);
+    console.error('Worker init failed:', err);
   }
 }
 
-/* DO NOT hijack window.onload */
 initWorker();
 
-/* ================= FRAME QUEUE ================= */
+/* ================= FRAME QUEUE (FIXED) ================= */
 function enqueueFrame(img) {
   frameQueue.push(img);
 
@@ -90,7 +99,7 @@ function processLoop() {
       frameQueue.length = 0;
 
       worker.postMessage(
-        { img, ...activeConfig, isFront: currentFacingMode === "user" },
+        { img, ...activeConfig, isFront: currentFacingMode === 'user' },
         [img.data.buffer]
       );
     }
@@ -112,7 +121,7 @@ function startHealthCheck() {
 
   healthInterval = setInterval(() => {
     const now = performance.now();
-    if (now - lastWorkerResponse > 3000) worker.postMessage("PING");
+    if (now - lastWorkerResponse > 3000) worker.postMessage('PING');
     if (now - lastWorkerResponse > 7000) initWorker();
   }, 2000);
 }
@@ -126,23 +135,34 @@ async function bootApp() {
 
   activeConfig = {
     panel: currentPanel,
-    scale: parseFloat(document.getElementById(currentPanel === 'A' ? 'scaleA' : 'scaleB').value),
-    blur: parseInt(document.getElementById(currentPanel === 'A' ? 'blurA' : 'blurB').value),
-    sense: parseFloat(document.getElementById(currentPanel === 'A' ? 'senseA' : 'senseB').value),
+    scale: parseFloat(
+      document.getElementById(currentPanel === 'A' ? 'scaleA' : 'scaleB').value
+    ),
+    blur: parseInt(
+      document.getElementById(currentPanel === 'A' ? 'blurA' : 'blurB').value
+    ),
+    sense: parseFloat(
+      document.getElementById(currentPanel === 'A' ? 'senseA' : 'senseB').value
+    ),
     k: parseInt(document.getElementById('kSize').value),
     oldCode: currentPanel === 'B' && logicB.value === 'old_code'
   };
 
   try {
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: parseInt(res.value) }, facingMode: currentFacingMode }
+      video: {
+        width: { ideal: parseInt(res.value) },
+        facingMode: currentFacingMode
+      }
     });
 
     video.srcObject = stream;
 
     video.onloadedmetadata = () => {
-      canvas.width = offCanvas.width = Math.floor(video.videoWidth / activeConfig.scale);
-      canvas.height = offCanvas.height = Math.floor(video.videoHeight / activeConfig.scale);
+      canvas.width = offCanvas.width =
+        Math.floor(video.videoWidth / activeConfig.scale);
+      canvas.height = offCanvas.height =
+        Math.floor(video.videoHeight / activeConfig.scale);
 
       dashboard.style.display = 'none';
       canvas.style.display = 'block';
@@ -151,8 +171,9 @@ async function bootApp() {
       startHealthCheck();
       requestAnimationFrame(processLoop);
     };
+
   } catch (e) {
-    status.innerText = "CAMERA ERROR";
+    console.error(e);
+    status.innerText = 'CAMERA ERROR';
   }
 }
-</script>
