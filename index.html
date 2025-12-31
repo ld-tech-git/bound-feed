@@ -161,22 +161,45 @@
     <canvas id="outputCanvas"></canvas>
 
     <script>
-        let currentPanel = 'A', isLibReady = false, isRecording = false;
+       let currentPanel = 'A', isLibReady = false, isRecording = false;
         const video = document.getElementById('webcam'), canvas = document.getElementById('outputCanvas');
         const ctx = canvas.getContext('2d', { alpha: false }), offCanvas = document.createElement('canvas');
-        const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-        let worker, isProcessing = false, currentFacingMode = "user", activeConfig = null;
+        const offCtx = offCanvas.getContext('2d');
+        
+        let worker, currentFacingMode = "user", activeConfig = null;
         let mediaRecorder, recordedChunks = [], frames = 0, lastTime = performance.now();
+        
+        // LOCKS & TIMERS
+        let isProcessing = false;
+        let processStartTimestamp = 0; // The timestamp to break race conditions
+        let lastWorkerResponse = performance.now();
+        let lastVideoTime = -1;
+        let healthInterval, fsTimer;
 
-        worker = new Worker('./worker.js');
-        worker.onmessage = (e) => {
-            if (e.data === "READY") {
-                isLibReady = true;
-                const b = document.getElementById('bootBtn');
-                b.innerText = "BOOT ENGINE"; b.classList.add('ready');
-                document.getElementById('status').innerText = "ONLINE"; document.getElementById('status').style.color = "#0f0";
-            } else { ctx.putImageData(e.data, 0, 0); isProcessing = false; frames++; }
-        };
+        function initWorker() {
+            if (worker) worker.terminate();
+            worker = new Worker('./worker.js');
+            worker.onmessage = (e) => {
+                if (e.data === "READY") {
+                    isLibReady = true;
+                    document.getElementById('bootBtn').innerText = "BOOT ENGINE";
+                    document.getElementById('bootBtn').classList.add('ready');
+                    document.getElementById('status').innerText = "ONLINE";
+                    document.getElementById('status').style.color = "#0f0";
+                } else if (e.data === "PONG") {
+                    lastWorkerResponse = performance.now();
+                } else if (e.data === "RECOVER") {
+                    isProcessing = false;
+                } else { 
+                    ctx.putImageData(e.data, 0, 0); 
+                    isProcessing = false; // UNLOCK
+                    frames++; 
+                    lastWorkerResponse = performance.now();
+                }
+            };
+        }
+
+        window.onload = () => { initWorker(); };
 
         function switchPanel(p) {
             currentPanel = p;
@@ -188,6 +211,9 @@
 
         async function bootApp() {
             if(!isLibReady) return;
+            isProcessing = false;
+            if (video.srcObject) video.srcObject.getTracks().forEach(track => track.stop());
+            
             activeConfig = {
                 panel: currentPanel,
                 scale: parseFloat(document.getElementById(currentPanel === 'A' ? 'scaleA' : 'scaleB').value),
@@ -196,90 +222,114 @@
                 k: parseInt(document.getElementById('kSize').value),
                 oldCode: (currentPanel === 'B' && document.getElementById('logicB').value === 'old_code')
             };
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } });
-            video.srcObject = stream;
-            video.onloadedmetadata = () => {
-                canvas.width = offCanvas.width = video.videoWidth / activeConfig.scale;
-                canvas.height = offCanvas.height = video.videoHeight / activeConfig.scale;
-                document.getElementById('dashboard').style.display = 'none';
-                canvas.style.display = 'block';
-                document.getElementById('fsToggle').className = 'pos-normal';
-                document.getElementById('fsToggle').style.display = 'block';
-                requestAnimationFrame(processLoop);
-            };
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                    canvas.width = offCanvas.width = Math.floor(video.videoWidth / activeConfig.scale);
+                    canvas.height = offCanvas.height = Math.floor(video.videoHeight / activeConfig.scale);
+                    document.getElementById('dashboard').style.display = 'none';
+                    canvas.style.display = 'block';
+                    
+                    const fs = document.getElementById('fsToggle');
+                    fs.style.display = 'block';
+                    fs.className = 'pos-normal';
+
+                    if(!healthInterval) startHealthCheck();
+                    requestAnimationFrame(processLoop);
+                };
+            } catch (err) {
+                document.getElementById('status').innerText = "CAMERA ERROR";
+            }
+        }
+
+        function startHealthCheck() {
+            healthInterval = setInterval(() => {
+                if (!activeConfig || document.getElementById('dashboard').style.display !== 'none') return;
+                
+                const now = performance.now();
+                const isVideoStalled = (video.currentTime === lastVideoTime);
+                lastVideoTime = video.currentTime;
+
+                // Watchdog Stage 1: If worker is silent for 3s, poke it
+                if (now - lastWorkerResponse > 3000) {
+                    isProcessing = false; 
+                    if(worker) worker.postMessage("PING");
+                }
+
+                // Watchdog Stage 2: Hard reboot after 7s or frozen video
+                if (now - lastWorkerResponse > 7000 || (isVideoStalled && now - lastWorkerResponse > 4000)) {
+                    initWorker(); 
+                    bootApp(); 
+                }
+            }, 2000);
+        }
+
+        function processLoop() {
+            const now = performance.now();
+
+            // RACE CONDITION FIX: 
+            // If we've been "processing" for more than 500ms, assume the worker crashed or message was lost.
+            if (isProcessing && (now - processStartTimestamp > 500)) {
+                isProcessing = false;
+            }
+
+            if (!isProcessing && video.videoWidth > 0 && activeConfig && worker) {
+                isProcessing = true;
+                processStartTimestamp = now; // Mark the start of this transaction
+
+                offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
+                const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+                worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
+            }
+            
+            if (now - lastTime >= 1000) { 
+                document.getElementById('fps-tag').innerText = `FPS: ${frames}`; 
+                frames = 0; lastTime = now; 
+            }
+            requestAnimationFrame(processLoop);
         }
 
         function toggleFullScreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen();
-            } else {
-                if (document.exitFullscreen) document.exitFullscreen();
-            }
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else if (document.exitFullscreen) document.exitFullscreen();
         }
 
         document.addEventListener('fullscreenchange', () => {
             const btn = document.getElementById('fsToggle');
             if (document.fullscreenElement) {
-                btn.style.display = 'none'; 
-                btn.classList.add('exit');
-                btn.classList.replace('pos-normal', 'pos-fs');
+                btn.classList.add('exit'); btn.classList.replace('pos-normal', 'pos-fs');
+                clearTimeout(fsTimer); fsTimer = setTimeout(() => btn.style.display = 'none', 3000);
             } else {
+                btn.classList.remove('exit'); btn.classList.replace('pos-fs', 'pos-normal');
                 btn.style.display = 'block';
-                btn.classList.remove('exit');
-                btn.classList.replace('pos-fs', 'pos-normal');
             }
         });
 
-        async function toggleRecording() {
-            if (!isRecording) {
-                recordedChunks = [];
-                const stream = canvas.captureStream(30);
-                if (document.getElementById('micEnable').value === 'yes') {
-                    const audio = await navigator.mediaDevices.getUserMedia({ audio: true });
-                    audio.getAudioTracks().forEach(t => stream.addTrack(t));
-                }
-                const mime = document.getElementById('recFormat').value;
-                mediaRecorder = new MediaRecorder(stream, { mimeType: MediaRecorder.isTypeSupported(mime) ? mime : 'video/webm' });
-                mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
-                mediaRecorder.onstop = () => {
-                    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(recordedChunks));
-                    a.download = `laplacian_${Date.now()}.webm`; a.click();
-                };
-                mediaRecorder.start(); isRecording = true; document.getElementById('rec-indicator').style.display = 'block';
-            } else { mediaRecorder.stop(); isRecording = false; document.getElementById('rec-indicator').style.display = 'none'; }
-        }
-
-        function processLoop() {
-            if (!isProcessing && video.videoWidth > 0 && activeConfig) {
-                isProcessing = true;
-                offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
-                const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-                worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
-            }
-            if (performance.now() - lastTime >= 1000) { document.getElementById('fps-tag').innerText = `FPS: ${frames}`; frames = 0; lastTime = performance.now(); }
-            requestAnimationFrame(processLoop);
-        }
-
         window.addEventListener('contextmenu', e => { e.preventDefault(); toggleRecording(); });
         let touchX = 0;
-        window.addEventListener('touchstart', e => { touchX = e.changedTouches[0].screenX; });
-        window.addEventListener('touchend', e => { if (touchX - e.changedTouches[0].screenX > 100) toggleRecording(); });
-
-        let taps = 0, tapT, fsTimer;
-        window.addEventListener('touchstart', () => {
-            taps++; clearTimeout(tapT);
-            
+        window.addEventListener('touchstart', e => { 
+            touchX = e.changedTouches[0].screenX; 
             const btn = document.getElementById('fsToggle');
             btn.style.display = 'block';
             clearTimeout(fsTimer);
-            fsTimer = setTimeout(() => { if(document.fullscreenElement) btn.style.display = 'none'; }, 3000);
+            if(document.fullscreenElement) fsTimer = setTimeout(() => btn.style.display = 'none', 3000);
+        });
+        window.addEventListener('touchend', e => { if (touchX - e.changedTouches[0].screenX > 100) toggleRecording(); });
 
+        let taps = 0, tapT;
+        window.addEventListener('touchstart', () => {
+            taps++; clearTimeout(tapT);
             tapT = setTimeout(() => {
                 if (taps === 2) { const f = document.getElementById('fps-tag'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
                 if (taps === 3) { currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; bootApp(); }
-                if (taps === 4) setTimeout(() => {
-                    const l = document.createElement('a'); l.download = `snap_${Date.now()}.png`; l.href = canvas.toDataURL(); l.click();
-                }, 7000);
+                if (taps === 4) { 
+                    const l = document.createElement('a'); l.download = `snap_${Date.now()}.png`; 
+                    l.href = canvas.toDataURL(); l.click(); 
+                }
                 taps = 0;
             }, 300);
         });
