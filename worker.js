@@ -6,6 +6,12 @@ let currentW = 0, currentH = 0;
 cv['onRuntimeInitialized'] = () => { postMessage("READY"); };
 
 onmessage = function(e) {
+    // CHANGE: Handle Pulse Check (Ping/Pong)
+    if (e.data === "PING") {
+        postMessage("PONG");
+        return;
+    }
+
     if (e.data === "READY" || !cv.Mat) return;
 
     try {
@@ -23,7 +29,6 @@ onmessage = function(e) {
             blurred = new cv.Mat();
             edges = new cv.Mat();
             mask = new cv.Mat(img.height, img.width, cv.CV_8UC4, [0, 0, 0, 255]);
-            
             currentW = img.width;
             currentH = img.height;
         }
@@ -56,7 +61,6 @@ onmessage = function(e) {
         mask.setTo(new cv.Scalar(0, 0, 0, 255));
         src.copyTo(mask, edges);
 
-        // CHANGE: Simplified the ImageData creation to reduce memory overhead
         const output = new ImageData(new Uint8ClampedArray(mask.data), mask.cols, mask.rows);
         postMessage(output, [output.data.buffer]);
 
