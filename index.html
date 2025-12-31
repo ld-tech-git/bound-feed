@@ -1,34 +1,52 @@
 <script>
-/* ===================== CORE STATE ===================== */
-let currentPanel = 'A', isLibReady = false;
+/* ===================== DOM BINDS (FIX implicit globals) ===================== */
+const bootBtn = document.getElementById('bootBtn');
+const status = document.getElementById('status');
+const fpsTag = document.getElementById('fps-tag');
+const dashboard = document.getElementById('dashboard');
+const fsToggle = document.getElementById('fsToggle');
+const logicB = document.getElementById('logicB');
+const res = document.getElementById('res');
+
 const video = document.getElementById('webcam');
 const canvas = document.getElementById('outputCanvas');
 const ctx = canvas.getContext('2d', { alpha: false });
+
+/* ===================== CORE STATE ===================== */
+let currentPanel = 'A';
+let isLibReady = false;
+let currentFacingMode = "user";
+let activeConfig = null;
+
 const offCanvas = document.createElement('canvas');
 const offCtx = offCanvas.getContext('2d');
 
-let worker, activeConfig = null;
-let frameQueue = [];          // FIX 5.1
+let worker;
+let frameQueue = [];
 let isWorkerBusy = false;
+
+let frames = 0;
+let lastTime = performance.now();
 let lastWorkerResponse = performance.now();
 let lastVideoTime = -1;
-let frames = 0, lastTime = performance.now();
-let healthInterval, fsTimer;
-let currentFacingMode = "user";
+let healthInterval;
+let fsTimer;
 
 /* ===================== SERVICE WORKER ===================== */
-// FIX: Cache OpenCV so it is NOT reloaded on every boot
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js');
 }
 
 /* ===================== WORKER INIT ===================== */
-function initWorker(hard = false) {
+function initWorker() {
   if (worker) worker.terminate();
+
   worker = new Worker('./worker.js');
 
   worker.onmessage = e => {
-    if (e.data === "READY") {
+    const data = e.data;
+
+    if (data === "READY") {
       isLibReady = true;
       bootBtn.classList.add('ready');
       bootBtn.innerText = "BOOT ENGINE";
@@ -37,19 +55,18 @@ function initWorker(hard = false) {
       return;
     }
 
-    if (e.data === "PONG") {
+    if (data === "PONG") {
       lastWorkerResponse = performance.now();
       return;
     }
 
-    if (e.data === "RECOVER") {
+    if (data === "RECOVER") {
       isWorkerBusy = false;
       frameQueue.length = 0;
       return;
     }
 
-    // Image frame
-    ctx.putImageData(e.data, 0, 0);
+    ctx.putImageData(data, 0, 0);
     frames++;
     isWorkerBusy = false;
     lastWorkerResponse = performance.now();
@@ -75,22 +92,24 @@ async function bootApp() {
   };
 
   const stream = await navigator.mediaDevices.getUserMedia({
-    video: { width: { ideal: +res.value }, facingMode: currentFacingMode }
+    video: { width: { ideal: parseInt(res.value) }, facingMode: currentFacingMode }
   });
 
   video.srcObject = stream;
+
   video.onloadedmetadata = () => {
     canvas.width = offCanvas.width = Math.floor(video.videoWidth / activeConfig.scale);
     canvas.height = offCanvas.height = Math.floor(video.videoHeight / activeConfig.scale);
     dashboard.style.display = 'none';
     canvas.style.display = 'block';
     fsToggle.style.display = 'block';
+
     if (!healthInterval) startHealthCheck();
     requestAnimationFrame(processLoop);
   };
 }
 
-/* ===================== FRAME CONTROL (FIX 5.1) ===================== */
+/* ===================== FRAME QUEUE CONTROL ===================== */
 function enqueueFrame(img) {
   frameQueue.push(img);
 
@@ -102,18 +121,25 @@ function enqueueFrame(img) {
     frameQueue = frameQueue.slice(-3);
 }
 
-/* ===================== PROCESS LOOP ===================== */
+/* ===================== MAIN LOOP ===================== */
 function processLoop() {
-  if (video.videoWidth > 0 && activeConfig) {
+  if (
+    video.readyState >= 2 &&
+    video.videoWidth > 0 &&
+    activeConfig
+  ) {
     offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
     enqueueFrame(offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height));
   }
 
   if (!isWorkerBusy && frameQueue.length) {
     isWorkerBusy = true;
-    const img = frameQueue.pop();   // newest only
-    frameQueue.length = 0;
-    worker.postMessage({ img, ...activeConfig, isFront: currentFacingMode === "user" }, [img.data.buffer]);
+    const img = frameQueue.pop();
+    frameQueue.length = 0; // intentional: newest-only delivery
+    worker.postMessage(
+      { img, ...activeConfig, isFront: currentFacingMode === "user" },
+      [img.data.buffer]
+    );
   }
 
   const now = performance.now();
@@ -122,12 +148,13 @@ function processLoop() {
     frames = 0;
     lastTime = now;
   }
+
   requestAnimationFrame(processLoop);
 }
 
 /* ===================== HEALTH & MEMORY ===================== */
 function startHealthCheck() {
-  let softResetTimer = performance.now();
+  let lastSoftReset = performance.now();
 
   healthInterval = setInterval(() => {
     const now = performance.now();
@@ -136,38 +163,53 @@ function startHealthCheck() {
       worker.postMessage("PING");
 
     if (now - lastWorkerResponse > 7000)
-      initWorker(true);
+      initWorker();
 
-    // FIX 5.2: Soft worker reset every 20s
-    if (now - softResetTimer > 20000) {
+    if (now - lastSoftReset > 20000) {
       worker.postMessage("SOFT_RESET");
-      softResetTimer = now;
+      lastSoftReset = now;
     }
   }, 2000);
 }
 
-/* ===================== TOUCH HANDLER FIX (4.3) ===================== */
-let taps = 0, tapTimer, touchX = 0;
+/* ===================== TOUCH HANDLING (MERGED & SAFE) ===================== */
+let taps = 0;
+let tapTimer = null;
+let touchX = 0;
 
 window.addEventListener('touchstart', e => {
   touchX = e.changedTouches[0].screenX;
   taps++;
+
+  fsToggle.style.display = 'block';
+  clearTimeout(fsTimer);
+  if (document.fullscreenElement)
+    fsTimer = setTimeout(() => fsToggle.style.display = 'none', 3000);
+
   clearTimeout(tapTimer);
   tapTimer = setTimeout(() => {
-    if (taps === 2) fpsTag.style.display = fpsTag.style.display === 'none' ? 'block' : 'none';
-    if (taps === 3) { currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; bootApp(); }
+    if (taps === 2)
+      fpsTag.style.display = fpsTag.style.display === 'none' ? 'block' : 'none';
+
+    if (taps === 3) {
+      currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+      bootApp();
+    }
+
     if (taps === 4) {
       const a = document.createElement('a');
       a.href = canvas.toDataURL();
       a.download = `snap_${Date.now()}.png`;
       a.click();
     }
+
     taps = 0;
   }, 300);
 });
 
 window.addEventListener('touchend', e => {
-  if (touchX - e.changedTouches[0].screenX > 100)
-    toggleRecording?.(); // FIX 4.1: safely optional
+  if (touchX - e.changedTouches[0].screenX > 100) {
+    /* Recording intentionally disabled – no-op but explicit */
+  }
 });
 </script>
