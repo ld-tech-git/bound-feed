@@ -12,11 +12,13 @@
             isLibReady = true;
             const b = document.getElementById('bootBtn');
             b.innerText = "BOOT ENGINE"; b.classList.add('ready');
-            document.getElementById('status').innerText = "ONLINE"; document.getElementById('status').style.color = "#0f0";
+            document.getElementById('status').innerText = "ONLINE"; 
+            document.getElementById('status').style.color = "#0f0";
         } else if (e.data === "RECOVER") {
-            // STABILITY FIX: Unlock loop if worker crashed
+            // FIX: Release the lock if the worker encountered an error
             isProcessing = false;
         } else { 
+            // Normal frame delivery
             ctx.putImageData(e.data, 0, 0); 
             isProcessing = false; 
             frames++; 
@@ -41,17 +43,28 @@
             k: parseInt(document.getElementById('kSize').value),
             oldCode: (currentPanel === 'B' && document.getElementById('logicB').value === 'old_code')
         };
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } });
-        video.srcObject = stream;
-        video.onloadedmetadata = () => {
-            canvas.width = offCanvas.width = Math.floor(video.videoWidth / activeConfig.scale);
-            canvas.height = offCanvas.height = Math.floor(video.videoHeight / activeConfig.scale);
-            document.getElementById('dashboard').style.display = 'none';
-            canvas.style.display = 'block';
-            document.getElementById('fsToggle').className = 'pos-normal';
-            document.getElementById('fsToggle').style.display = 'block';
-            requestAnimationFrame(processLoop);
-        };
+        
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    width: { ideal: parseInt(document.getElementById('res').value) }, 
+                    facingMode: currentFacingMode 
+                } 
+            });
+            video.srcObject = stream;
+            video.onloadedmetadata = () => {
+                canvas.width = offCanvas.width = Math.floor(video.videoWidth / activeConfig.scale);
+                canvas.height = offCanvas.height = Math.floor(video.videoHeight / activeConfig.scale);
+                document.getElementById('dashboard').style.display = 'none';
+                canvas.style.display = 'block';
+                document.getElementById('fsToggle').className = 'pos-normal';
+                document.getElementById('fsToggle').style.display = 'block';
+                requestAnimationFrame(processLoop);
+            };
+        } catch (err) {
+            console.error("Camera access denied:", err);
+            document.getElementById('status').innerText = "CAMERA ERROR";
+        }
     }
 
     function toggleFullScreen() {
@@ -99,10 +112,13 @@
             isProcessing = true;
             offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
             const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
-            // Pass configuration and image to worker
             worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
         }
-        if (performance.now() - lastTime >= 1000) { document.getElementById('fps-tag').innerText = `FPS: ${frames}`; frames = 0; lastTime = performance.now(); }
+        if (performance.now() - lastTime >= 1000) { 
+            document.getElementById('fps-tag').innerText = `FPS: ${frames}`; 
+            frames = 0; 
+            lastTime = performance.now(); 
+        }
         requestAnimationFrame(processLoop);
     }
 
@@ -121,11 +137,20 @@
         fsTimer = setTimeout(() => { if(document.fullscreenElement) btn.style.display = 'none'; }, 3000);
 
         tapT = setTimeout(() => {
-            if (taps === 2) { const f = document.getElementById('fps-tag'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
-            if (taps === 3) { currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; bootApp(); }
+            if (taps === 2) { 
+                const f = document.getElementById('fps-tag'); 
+                f.style.display = f.style.display === 'none' ? 'block' : 'none'; 
+            }
+            if (taps === 3) { 
+                currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; 
+                bootApp(); 
+            }
             if (taps === 4) setTimeout(() => {
-                const l = document.createElement('a'); l.download = `snap_${Date.now()}.png`; l.href = canvas.toDataURL(); l.click();
-            }, 7000); // 7s delay as requested
+                const l = document.createElement('a'); 
+                l.download = `snap_${Date.now()}.png`; 
+                l.href = canvas.toDataURL(); 
+                l.click();
+            }, 7000);
             taps = 0;
         }, 300);
     });
