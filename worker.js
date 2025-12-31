@@ -47,7 +47,6 @@ onmessage = function(e) {
                 cv.Laplacian(blurred, edges, cv.CV_8U, 5);
                 cv.threshold(edges, edges, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
             } else {
-            
                 cv.medianBlur(gray, blurred, bVal);
                 cv.Laplacian(blurred, edges, cv.CV_8U, k || 3);
                 cv.threshold(edges, edges, sense || 40, 255, cv.THRESH_BINARY);
@@ -57,8 +56,6 @@ onmessage = function(e) {
         mask.setTo(new cv.Scalar(0, 0, 0, 255));
         src.copyTo(mask, edges);
 
-        // CHANGE: Use outputArray variable to ensure the buffer is cleanly managed 
-        // before being passed to postMessage.
         const outputArray = new Uint8ClampedArray(mask.data);
         const output = new ImageData(outputArray, mask.cols, mask.rows);
         postMessage(output, [output.data.buffer]);
