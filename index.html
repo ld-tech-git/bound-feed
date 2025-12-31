@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | Absolute Master v2.0.4</title>
+    <title>Laplacian Pro | Absolute Master v2.0.5</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
@@ -35,15 +35,11 @@
         #fsToggle.exit::after { border-style: none solid solid none; }
 
         @keyframes blink { 50% { opacity: 0; } }
-        /* Capture Fix: Ensure Canvas is explicitly layered */
-        canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 10; background: #000; }
+        canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: contain; display: none; z-index: 10; background: #000; }
         #webcam { display: none; }
         .status { font-size: 10px; margin-top: 10px; color: #f00; font-weight: bold; }
         #errorLog { font-size: 9px; color: #fa0; margin-top: 10px; width: 100%; height: 40px; background: #000; border: none; outline: none; resize: none; }
         .rec-box { border: 1px dashed #f00; padding: 10px; margin-bottom: 15px; }
-
-        /* Pseudo-FS to help Streaming Apps */
-        :fullscreen canvas { width: 100vw; height: 100vh; }
     </style>
 </head>
 <body>
@@ -58,7 +54,6 @@
     <div id="dashboard">
         <div class="box">
             <h2 style="margin:0 0 10px 0; letter-spacing: 1px;">SYSTEM CONFIG</h2>
-            
             <div class="rec-box">
                 <label style="color: #f00;">Global Recording</label>
                 <div class="opt">
@@ -158,7 +153,6 @@
     <script>
         let currentPanel = 'A', isLibReady = false, isRecording = false;
         const video = document.getElementById('webcam'), canvas = document.getElementById('outputCanvas');
-        // Capture Fix: Use standard synchronization for streaming stability
         const ctx = canvas.getContext('2d', { alpha: false, desynchronized: false });
         const offCanvas = document.createElement('canvas'), offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
         
@@ -171,11 +165,7 @@
         function log(msg) { document.getElementById('errorLog').value += `> ${msg}\n`; }
 
         async function requestWakeLock() {
-            try {
-                if ('wakeLock' in navigator) {
-                    wakeLock = await navigator.wakeLock.request('screen');
-                }
-            } catch (err) { log("WakeLock Error: " + err.message); }
+            try { if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); } } catch (err) {}
         }
 
         if (navigator.getBattery) {
@@ -212,6 +202,19 @@
             document.getElementById('tabB').classList.toggle('active', p==='B');
         }
 
+        function handleResize() {
+            if (!activeConfig || !video.videoWidth) return;
+            canvas.width = offCanvas.width = Math.floor(video.videoWidth / activeConfig.scale);
+            canvas.height = offCanvas.height = Math.floor(video.videoHeight / activeConfig.scale);
+            canvas.style.width = '100vw';
+            canvas.style.height = '100vh';
+        }
+
+        window.addEventListener('resize', () => {
+            clearTimeout(window.resizeT);
+            window.resizeT = setTimeout(handleResize, 300);
+        });
+
         async function bootApp() {
             if(!isLibReady) return;
             isProcessing = false;
@@ -233,8 +236,7 @@
                 video.srcObject = stream;
                 video.onloadedmetadata = () => {
                     video.play();
-                    canvas.width = offCanvas.width = Math.floor(video.videoWidth / activeConfig.scale);
-                    canvas.height = offCanvas.height = Math.floor(video.videoHeight / activeConfig.scale);
+                    handleResize();
                     document.getElementById('dashboard').style.display = 'none';
                     canvas.style.display = 'block';
                     requestWakeLock();
@@ -284,7 +286,7 @@
                     try {
                         const mic = await navigator.mediaDevices.getUserMedia({ audio: true });
                         mic.getAudioTracks().forEach(t => stream.addTrack(t));
-                    } catch(e) { log("Mic Access Denied"); }
+                    } catch(e) {}
                 }
                 const format = document.getElementById('recFormat').value;
                 mediaRecorder = new MediaRecorder(stream, { mimeType: format });
@@ -305,20 +307,14 @@
         function toggleFullScreen() {
             const doc = window.document;
             const docEl = doc.documentElement;
+            const requestFS = docEl.requestFullscreen || docEl.webkitRequestFullScreen;
+            const exitFS = doc.exitFullscreen || doc.webkitExitFullscreen;
 
-            const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-            const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-            if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-                requestFullScreen.call(docEl);
+            if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
+                requestFS.call(docEl).then(() => setTimeout(handleResize, 500));
             } else {
-                cancelFullScreen.call(doc);
+                exitFS.call(doc).then(() => setTimeout(handleResize, 500));
             }
-            // Capture Fix: Force canvas resize on toggle
-            setTimeout(() => {
-                canvas.style.width = '100vw';
-                canvas.style.height = '100vh';
-            }, 100);
         }
 
         let touchStartX = 0;
