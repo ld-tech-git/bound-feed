@@ -1,22 +1,18 @@
 importScripts('https://docs.opencv.org/4.10.0/opencv.js');
 
-// Declare variables in the global worker scope for persistence
+// Declare globally for reuse, but DO NOT initialize until OpenCV is ready
 let src, gray, blurred, edges, mask;
 let isInitialized = false;
 
 cv['onRuntimeInitialized'] = () => { postMessage("READY"); };
 
 onmessage = function(e) {
-    if (e.data === "READY") return;
-    
-    // Safety check: Ensure OpenCV is fully loaded before any logic runs
-    if (!cv || !cv.Mat) return;
+    if (e.data === "READY" || !cv.Mat) return;
 
     try {
         const { img, panel, blur, k, sense, isFront, oldCode } = e.data;
         
-        // ALLOCATION LOGIC: Initialize Mats ONLY ONCE on the first frame
-        // This prevents memory bloat while avoiding the "OpenCV not loaded" error
+        // Initialize Mats only on the first frame once OpenCV is definitely loaded
         if (!isInitialized) {
             src = new cv.Mat(img.height, img.width, cv.CV_8UC4);
             gray = new cv.Mat();
@@ -26,13 +22,13 @@ onmessage = function(e) {
             isInitialized = true;
         }
 
-        // Reuse existing Mat memory
+        // Load data into existing Mat
         src.data.set(img.data);
         if (isFront) cv.flip(src, src, 1);
 
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-        // STABILITY FIX: Ensure blur (kernel size) is always an odd number
+        // STABILITY: Ensure blur kernel is odd
         let bVal = (blur || 3);
         if (bVal % 2 === 0) bVal += 1;
 
@@ -54,7 +50,6 @@ onmessage = function(e) {
             }
         }
 
-        // Reset mask to black and copy edges
         mask.setTo(new cv.Scalar(0, 0, 0, 255));
         src.copyTo(mask, edges);
 
@@ -62,7 +57,7 @@ onmessage = function(e) {
         postMessage(output, [output.data.buffer]);
 
     } catch (err) {
-        console.error("Worker Logic Error:", err);
+        console.error("OpenCV Worker Error:", err);
         postMessage("RECOVER");
     }
 };
