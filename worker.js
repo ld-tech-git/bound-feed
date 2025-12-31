@@ -1,21 +1,23 @@
 importScripts('https://docs.opencv.org/4.10.0/opencv.js');
 
-// These will hold our persistent memory to prevent heap bloat
+// Declare variables in the global worker scope for persistence
 let src, gray, blurred, edges, mask;
 let isInitialized = false;
 
-cv['onRuntimeInitialized'] = () => { 
-    postMessage("READY"); 
-};
+cv['onRuntimeInitialized'] = () => { postMessage("READY"); };
 
 onmessage = function(e) {
     if (e.data === "READY") return;
+    
+    // Safety check: Ensure OpenCV is fully loaded before any logic runs
+    if (!cv || !cv.Mat) return;
 
     try {
         const { img, panel, blur, k, sense, isFront, oldCode } = e.data;
         
-        // Initializing Mats only once to fix the memory/FPS issue
-        if (!isInitialized && typeof cv !== 'undefined' && cv.Mat) {
+        // ALLOCATION LOGIC: Initialize Mats ONLY ONCE on the first frame
+        // This prevents memory bloat while avoiding the "OpenCV not loaded" error
+        if (!isInitialized) {
             src = new cv.Mat(img.height, img.width, cv.CV_8UC4);
             gray = new cv.Mat();
             blurred = new cv.Mat();
@@ -24,15 +26,13 @@ onmessage = function(e) {
             isInitialized = true;
         }
 
-        if (!isInitialized) return;
-
         // Reuse existing Mat memory
         src.data.set(img.data);
         if (isFront) cv.flip(src, src, 1);
 
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-        // STABILITY FIX: OpenCV requires odd numbers for blur kernels
+        // STABILITY FIX: Ensure blur (kernel size) is always an odd number
         let bVal = (blur || 3);
         if (bVal % 2 === 0) bVal += 1;
 
@@ -54,7 +54,7 @@ onmessage = function(e) {
             }
         }
 
-        // Reset mask and copy edges
+        // Reset mask to black and copy edges
         mask.setTo(new cv.Scalar(0, 0, 0, 255));
         src.copyTo(mask, edges);
 
@@ -62,7 +62,7 @@ onmessage = function(e) {
         postMessage(output, [output.data.buffer]);
 
     } catch (err) {
-        console.error("Worker Error:", err);
+        console.error("Worker Logic Error:", err);
         postMessage("RECOVER");
     }
 };
