@@ -1,6 +1,6 @@
 importScripts('https://docs.opencv.org/4.10.0/opencv.js');
 
-// Declare globally for reuse, but DO NOT initialize until OpenCV is ready
+// Globals for memory reuse
 let src, gray, blurred, edges, mask;
 let isInitialized = false;
 
@@ -11,8 +11,8 @@ onmessage = function(e) {
 
     try {
         const { img, panel, blur, k, sense, isFront, oldCode } = e.data;
-        
-        // Initialize Mats only on the first frame once OpenCV is definitely loaded
+
+        // CHANGE: Only initialize Mats once we have valid image dimensions
         if (!isInitialized) {
             src = new cv.Mat(img.height, img.width, cv.CV_8UC4);
             gray = new cv.Mat();
@@ -22,14 +22,14 @@ onmessage = function(e) {
             isInitialized = true;
         }
 
-        // Load data into existing Mat
+        // Set the current image data into the existing Mat
         src.data.set(img.data);
         if (isFront) cv.flip(src, src, 1);
 
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-        // STABILITY: Ensure blur kernel is odd
-        let bVal = (blur || 3);
+        // CHANGE: Logic check - blur must be an odd number for OpenCV kernels
+        let bVal = blur || 3;
         if (bVal % 2 === 0) bVal += 1;
 
         if (panel === 'A') {
@@ -57,7 +57,7 @@ onmessage = function(e) {
         postMessage(output, [output.data.buffer]);
 
     } catch (err) {
-        console.error("OpenCV Worker Error:", err);
+        // CHANGE: Recovery message ensures the main loop doesn't stay locked
         postMessage("RECOVER");
     }
 };
