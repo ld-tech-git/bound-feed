@@ -11,7 +11,6 @@ onmessage = function(e) {
     try {
         const { img, panel, blur, k, sense, isFront, oldCode } = e.data;
 
-        // CHANGE: Check for dimension changes (common on camera flip) and re-initialize Mats
         if (img.width !== currentW || img.height !== currentH) {
             if (src) src.delete();
             if (gray) gray.delete();
@@ -58,7 +57,9 @@ onmessage = function(e) {
         mask.setTo(new cv.Scalar(0, 0, 0, 255));
         src.copyTo(mask, edges);
 
-        const output = new ImageData(new Uint8ClampedArray(mask.data), mask.cols, mask.rows);
+        // CHANGE: Use a more robust return method to avoid buffer detachment issues
+        const outputArray = new Uint8ClampedArray(mask.data);
+        const output = new ImageData(outputArray, mask.cols, mask.rows);
         postMessage(output, [output.data.buffer]);
 
     } catch (err) {
