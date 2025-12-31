@@ -165,6 +165,9 @@
         const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
         let worker, isProcessing = false, currentFacingMode = "user", activeConfig = null;
         let mediaRecorder, recordedChunks = [], frames = 0, lastTime = performance.now();
+        
+        // NEW FEATURE: Watchdog for frozen feed
+        let zeroFpsTimer = 0;
 
         worker = new Worker('./worker.js');
         worker.onmessage = (e) => {
@@ -193,8 +196,8 @@
         async function bootApp() {
             if(!isLibReady) return;
             
-            // CHANGE: Reset processing lock and stop old stream to prevent flip-freeze
             isProcessing = false;
+            zeroFpsTimer = 0; // Reset watchdog on boot
             if (video.srcObject) {
                 video.srcObject.getTracks().forEach(track => track.stop());
             }
@@ -275,7 +278,26 @@
                 const imgData = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
                 worker.postMessage({ img: imgData, ...activeConfig, isFront: (currentFacingMode === "user") }, [imgData.data.buffer]);
             }
-            if (performance.now() - lastTime >= 1000) { document.getElementById('fps-tag').innerText = `FPS: ${frames}`; frames = 0; lastTime = performance.now(); }
+            
+            const now = performance.now();
+            if (now - lastTime >= 1000) { 
+                document.getElementById('fps-tag').innerText = `FPS: ${frames}`; 
+                
+                // AUTO-RECOVERY LOGIC
+                if (frames === 0 && activeConfig) {
+                    zeroFpsTimer += 1000;
+                    if (zeroFpsTimer >= 3000) {
+                        console.warn("Watchdog: Engine freeze detected. Forcing unlock...");
+                        isProcessing = false;
+                        zeroFpsTimer = 0;
+                    }
+                } else {
+                    zeroFpsTimer = 0;
+                }
+
+                frames = 0; 
+                lastTime = now; 
+            }
             requestAnimationFrame(processLoop);
         }
 
