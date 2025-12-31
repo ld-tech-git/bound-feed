@@ -33,277 +33,264 @@
     </style>
 </head>
 <body>
+    <div id="fps-tag">FPS: --</div>
+    <div id="rec-indicator">● REC</div>
+    <div id="fsToggle" onclick="toggleFullScreen()"></div>
 
-<div id="fps-tag">FPS: --</div>
-<div id="rec-indicator">● REC</div>
-<div id="fsToggle" onclick="toggleFullScreen()"></div>
+    <div id="dashboard">
+        <div class="box">
+            <h2 style="margin:0 0 10px 0; letter-spacing: 1px;">SYSTEM CONFIG</h2>
+            <div class="rec-box">
+                <label style="color: #f00;">Global Recording</label>
+                <div class="opt">
+                    <label>Format</label>
+                    <select id="recFormat">
+                        <option value="video/webm;codecs=vp9">WEBM (Universal)</option>
+                        <option value="video/mp4">MP4 (PC Only)</option>
+                    </select>
+                </div>
+                <div class="opt">
+                    <label>Microphone</label>
+                    <select id="micEnable">
+                        <option value="no" selected>No Audio</option>
+                        <option value="yes">With Audio</option>
+                    </select>
+                </div>
+            </div>
 
-<div id="dashboard">
-    <div class="box">
-        <h2 style="margin:0 0 10px 0; letter-spacing: 1px;">SYSTEM CONFIG</h2>
+            <div class="tabs">
+                <div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A<br>(GAU_OTS)</div>
+                <div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B<br>(MEDIAN)</div>
+            </div>
 
-        <div class="rec-box">
-            <label style="color: #f00;">Global Recording</label>
             <div class="opt">
-                <label>Format</label>
-                <select id="recFormat">
-                    <option value="video/webm;codecs=vp9">WEBM (Universal)</option>
-                    <option value="video/mp4">MP4 (PC Only)</option>
+                <label>Resolution</label>
+                <select id="res">
+                    <option value="1920">1080p (True HD)</option>
+                    <option value="1600">900p (High)</option>
+                    <option value="1280" selected>720p (Balanced)</option>
+                    <option value="1024">1024px</option>
+                    <option value="800">800px</option>
+                    <option value="640">480p (Fast)</option>
+                    <option value="480">360p (Turbo)</option>
                 </select>
             </div>
-            <div class="opt">
-                <label>Microphone</label>
-                <select id="micEnable">
-                    <option value="no" selected>No Audio</option>
-                    <option value="yes">With Audio</option>
-                </select>
-            </div>
-        </div>
 
-        <div class="tabs">
-            <div id="tabA" class="tab active" onclick="switchPanel('A')">PANEL A<br>(GAU_OTS)</div>
-            <div id="tabB" class="tab" onclick="switchPanel('B')">PANEL B<br>(MEDIAN)</div>
-        </div>
+            <!-- Panel A and B settings (unchanged) -->
+            <div id="panelA" class="panel active">
+                <div class="opt"><label>A. Scale</label>
+                    <select id="scaleA">
+                        <option value="1">1.0x</option><option value="1.2">1.2x</option>
+                        <option value="1.5" selected>1.5x</option><option value="2">2.0x</option>
+                        <option value="2.5">2.5x</option><option value="3.0">3.0x</option>
+                    </select>
+                </div>
+                <div class="opt"><label>A. Gaussian Blur</label>
+                    <select id="blurA">
+                        <option value="1">None</option><option value="3">3px</option>
+                        <option value="5" selected>5px</option><option value="7">7px</option>
+                        <option value="9">9px</option><option value="11">11px</option><option value="15">15px</option>
+                    </select>
+                </div>
+                <div class="opt"><label>A. Sensitivity</label>
+                    <select id="senseA">
+                        <option value="0.5">0.5 (Max)</option><option value="0.7">0.7</option>
+                        <option value="0.9" selected>0.9 (Std)</option><option value="1.1">1.1</option>
+                        <option value="1.3">1.3</option><option value="1.5">1.5</option>
+                    </select>
+                </div>
+            </div>
 
-        <div class="opt">
-            <label>Resolution</label>
-            <select id="res">
-                <option value="1920">1080p (True HD)</option>
-                <option value="1600">900p (High)</option>
-                <option value="1280" selected>720p (Balanced)</option>
-                <option value="1024">1024px</option>
-                <option value="800">800px</option>
-                <option value="640">480p (Fast)</option>
-                <option value="480">360p (Turbo)</option>
-            </select>
-        </div>
+            <div id="panelB" class="panel">
+                <div class="opt"><label>B. Logic</label>
+                    <select id="logicB">
+                        <option value="old_code" selected>old_code_use (Python)</option>
+                        <option value="median">Standard Median</option>
+                    </select>
+                </div>
+                <div class="opt"><label>B. Scale</label>
+                    <select id="scaleB">
+                        <option value="1">1.0x</option><option value="1.5">1.5x</option>
+                        <option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option>
+                        <option value="5">5.0x</option>
+                    </select>
+                </div>
+                <div class="opt"><label>B. Median Blur</label>
+                    <select id="blurB">
+                        <option value="1">1</option><option value="3" selected>3</option>
+                        <option value="5">5</option><option value="7">7</option>
+                        <option value="9">9</option>
+                    </select>
+                </div>
+                <div class="opt"><label>B. Fixed Threshold</label>
+                    <select id="senseB">
+                        <option value="10">10</option><option value="20">20</option>
+                        <option value="40" selected>40</option><option value="60">60</option>
+                        <option value="80">80</option><option value="100">100</option>
+                    </select>
+                </div>
+            </div>
 
-        <div id="panelA" class="panel active">
-            <div class="opt"><label>A. Scale</label>
-                <select id="scaleA">
-                    <option value="1">1.0x</option><option value="1.2">1.2x</option>
-                    <option value="1.5" selected>1.5x</option><option value="2">2.0x</option>
-                    <option value="2.5">2.5x</option><option value="3.0">3.0x</option>
+            <div class="opt"><label>Edge Thickness (k)</label>
+                <select id="kSize">
+                    <option value="1">1 (Fine)</option><option value="3" selected>3 (Std)</option>
+                    <option value="5">5 (Bold)</option><option value="7">7 (Heavy)</option>
                 </select>
             </div>
-            <div class="opt"><label>A. Gaussian Blur</label>
-                <select id="blurA">
-                    <option value="1">None</option><option value="3">3px</option>
-                    <option value="5" selected>5px</option><option value="7">7px</option>
-                    <option value="9">9px</option><option value="11">11px</option><option value="15">15px</option>
-                </select>
-            </div>
-            <div class="opt"><label>A. Sensitivity</label>
-                <select id="senseA">
-                    <option value="0.5">0.5 (Max)</option><option value="0.7">0.7</option>
-                    <option value="0.9" selected>0.9 (Std)</option><option value="1.1">1.1</option>
-                    <option value="1.3">1.3</option><option value="1.5">1.5</option>
-                </select>
-            </div>
-        </div>
 
-        <div id="panelB" class="panel">
-            <div class="opt"><label>B. Logic</label>
-                <select id="logicB">
-                    <option value="old_code" selected>old_code_use (Python)</option>
-                    <option value="median">Standard Median</option>
-                </select>
-            </div>
-            <div class="opt"><label>B. Scale</label>
-                <select id="scaleB">
-                    <option value="1">1.0x</option><option value="1.5">1.5x</option>
-                    <option value="2.5" selected>2.5x</option><option value="3.5">3.5x</option>
-                    <option value="5">5.0x</option>
-                </select>
-            </div>
-            <div class="opt"><label>B. Median Blur</label>
-                <select id="blurB">
-                    <option value="1">1</option><option value="3" selected>3</option>
-                    <option value="5">5</option><option value="7">7</option><option value="9">9</option>
-                </select>
-            </div>
-            <div class="opt"><label>B. Fixed Threshold</label>
-                <select id="senseB">
-                    <option value="10">10</option><option value="20">20</option>
-                    <option value="40" selected>40</option><option value="60">60</option>
-                    <option value="80">80</option><option value="100">100</option>
-                </select>
-            </div>
+            <button id="bootBtn" onclick="bootApp()">WAITING FOR LIB...</button>
+            <div id="status" class="status">LOADING OPENCV...</div>
         </div>
-
-        <div class="opt"><label>Edge Thickness (k)</label>
-            <select id="kSize">
-                <option value="1">1 (Fine)</option><option value="3" selected>3 (Std)</option>
-                <option value="5">5 (Bold)</option><option value="7">7 (Heavy)</option>
-            </select>
-        </div>
-
-        <button id="bootBtn" onclick="bootApp()">WAITING FOR LIB...</button>
-        <div id="status" class="status">LOADING OPENCV...</div>
     </div>
-</div>
 
-<video id="webcam" autoplay playsinline></video>
-<canvas id="outputCanvas"></canvas>
+    <video id="webcam" autoplay playsinline></video>
+    <canvas id="outputCanvas"></canvas>
 
-<script>
-let currentPanel = 'A', isLibReady = false;
-const video = document.getElementById('webcam'), canvas = document.getElementById('outputCanvas');
-const ctx = canvas.getContext('2d', { alpha: false }), offCanvas = document.createElement('canvas');
-const offCtx = offCanvas.getContext('2d');
-let worker, isProcessing = false, frameQueue = [], currentFacingMode = "user", activeConfig = null;
-let frames = 0, lastTime = performance.now(), lastWorkerResponse = performance.now(), lastVideoTime = -1, healthInterval, fsTimer;
+    <script>
+        /* ================= DOM ================= */
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('outputCanvas');
+        const ctx = canvas.getContext('2d', {alpha:false});
+        const offCanvas = document.createElement('canvas');
+        const offCtx = offCanvas.getContext('2d');
+        const bootBtn = document.getElementById('bootBtn');
+        const status = document.getElementById('status');
+        const dashboard = document.getElementById('dashboard');
+        const fpsTag = document.getElementById('fps-tag');
+        const fsToggle = document.getElementById('fsToggle');
+        const logicB = document.getElementById('logicB');
+        const res = document.getElementById('res');
 
-function initWorker() {
-    if (worker) worker.terminate();
-    worker = new Worker('./worker.js');
-    worker.onmessage = e => {
-        if (e.data === "READY") {
-            isLibReady = true;
-            document.getElementById('bootBtn').innerText = "BOOT ENGINE";
-            document.getElementById('bootBtn').classList.add('ready');
-            document.getElementById('status').innerText = "ONLINE";
-            document.getElementById('status').style.color = "#0f0";
-        } else if (e.data === "PONG") {
-            lastWorkerResponse = performance.now();
-        } else if (e.data === "RECOVER") {
-            isProcessing = false;
-        } else {
-            ctx.putImageData(e.data, 0, 0);
-            isProcessing = false;
-            frames++;
-            lastWorkerResponse = performance.now();
+        /* ================= STATE ================= */
+        let worker = null;
+        let isLibReady = false;
+        let isProcessing = false;
+        let frameQueue = [];
+        let currentPanel = 'A';
+        let currentFacingMode = 'user';
+        let activeConfig = null;
+        let frames = 0;
+        let lastTime = performance.now();
+        let lastWorkerResponse = performance.now();
+        let lastVideoTime = -1;
+        let healthInterval = null;
+        let fsTimer;
+
+        /* ================= WORKER ================= */
+        function initWorker(){
+            if(worker) worker.terminate();
+            worker = new Worker('./worker.js');
+            worker.onmessage = (e)=>{
+                if(e.data==="READY"){
+                    isLibReady=true;
+                    bootBtn.innerText="BOOT ENGINE";
+                    bootBtn.classList.add('ready');
+                    status.innerText="ONLINE";
+                    status.style.color="#0f0";
+                } else if(e.data==="PONG"){
+                    lastWorkerResponse = performance.now();
+                } else if(e.data==="RECOVER"){
+                    isProcessing=false;
+                } else {
+                    ctx.putImageData(e.data,0,0);
+                    frames++;
+                    isProcessing=false;
+                    lastWorkerResponse = performance.now();
+                }
+            };
         }
-    };
-}
 
-window.onload = () => { initWorker(); };
+        window.onload = ()=>{ initWorker(); };
 
-function switchPanel(p) {
-    currentPanel = p;
-    document.getElementById('panelA').classList.toggle('active', p==='A');
-    document.getElementById('panelB').classList.toggle('active', p==='B');
-    document.getElementById('tabA').classList.toggle('active', p==='A');
-    document.getElementById('tabB').classList.toggle('active', p==='B');
-}
+        function switchPanel(p){
+            currentPanel=p;
+            document.getElementById('panelA').classList.toggle('active', p==='A');
+            document.getElementById('panelB').classList.toggle('active', p==='B');
+            document.getElementById('tabA').classList.toggle('active', p==='A');
+            document.getElementById('tabB').classList.toggle('active', p==='B');
+        }
 
-/* Frame queue management for smoother feed */
-function enqueueFrame(img) {
-    frameQueue.push(img);
-    if(frameQueue.length > 30) frameQueue = frameQueue.slice(-10);
-    else if(frameQueue.length > 10) frameQueue = frameQueue.slice(-5);
-    else if(frameQueue.length > 5) frameQueue = frameQueue.slice(-3);
-}
+        function toggleRecording(){ /* stub to prevent errors */ }
 
-async function bootApp() {
-    if(!isLibReady) return;
-    isProcessing = false;
-    if(video.srcObject) video.srcObject.getTracks().forEach(track => track.stop());
+        /* ================= BOOT ================= */
+        async function bootApp(){
+            if(!isLibReady) return;
+            isProcessing=false;
+            if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
 
-    activeConfig = {
-        panel: currentPanel,
-        scale: parseFloat(document.getElementById(currentPanel==='A'?'scaleA':'scaleB').value),
-        blur: parseInt(document.getElementById(currentPanel==='A'?'blurA':'blurB').value),
-        sense: parseFloat(document.getElementById(currentPanel==='A'?'senseA':'senseB').value),
-        k: parseInt(document.getElementById('kSize').value),
-        oldCode: currentPanel==='B' && document.getElementById('logicB').value==='old_code'
-    };
+            activeConfig = {
+                panel: currentPanel,
+                scale: parseFloat(document.getElementById(currentPanel==='A'?'scaleA':'scaleB').value),
+                blur: parseInt(document.getElementById(currentPanel==='A'?'blurA':'blurB').value),
+                sense: parseFloat(document.getElementById(currentPanel==='A'?'senseA':'senseB').value),
+                k: parseInt(document.getElementById('kSize').value),
+                oldCode: currentPanel==='B' && logicB.value==='old_code'
+            };
 
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width:{ ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode }
-        });
-        video.srcObject = stream;
-        video.onloadedmetadata = () => {
-            canvas.width = offCanvas.width = Math.floor(video.videoWidth/activeConfig.scale);
-            canvas.height = offCanvas.height = Math.floor(video.videoHeight/activeConfig.scale);
-            document.getElementById('dashboard').style.display = 'none';
-            canvas.style.display = 'block';
-            document.getElementById('fsToggle').style.display = 'block';
-            if(!healthInterval) startHealthCheck();
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video:{ width:{ideal:parseInt(res.value)}, facingMode:currentFacingMode }
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata=()=>{
+                    canvas.width = offCanvas.width = Math.floor(video.videoWidth / activeConfig.scale);
+                    canvas.height = offCanvas.height = Math.floor(video.videoHeight / activeConfig.scale);
+                    dashboard.style.display='none';
+                    canvas.style.display='block';
+                    fsToggle.style.display='block';
+                    fsToggle.className='pos-normal';
+                    if(!healthInterval) startHealthCheck();
+                    requestAnimationFrame(processLoop);
+                };
+            } catch(err){
+                status.innerText="CAMERA ERROR";
+            }
+        }
+
+        /* ================= HEALTH CHECK ================= */
+        function startHealthCheck(){
+            healthInterval = setInterval(()=>{
+                if(!activeConfig || dashboard.style.display!=='none') return;
+                const now = performance.now();
+                const isVideoStalled = (video.currentTime===lastVideoTime);
+                lastVideoTime = video.currentTime;
+
+                if(now-lastWorkerResponse>3000 || isVideoStalled) isProcessing=false, worker.postMessage("PING");
+                if(now-lastWorkerResponse>7000) initWorker(), bootApp();
+            },2000);
+        }
+
+        /* ================= MAIN LOOP ================= */
+        function processLoop(){
+            if(!isProcessing && video.videoWidth>0 && activeConfig){
+                isProcessing=true;
+                offCtx.drawImage(video,0,0,offCanvas.width,offCanvas.height);
+                const imgData = offCtx.getImageData(0,0,offCanvas.width,offCanvas.height);
+                worker.postMessage({...activeConfig, img:imgData, isFront:(currentFacingMode==='user')}, [imgData.data.buffer]);
+            }
+            const now = performance.now();
+            if(now-lastTime>=1000){ fpsTag.innerText=`FPS: ${frames}`; frames=0; lastTime=now; }
             requestAnimationFrame(processLoop);
-        };
-    } catch(err) {
-        document.getElementById('status').innerText = "CAMERA ERROR";
-    }
-}
-
-function startHealthCheck() {
-    healthInterval = setInterval(() => {
-        if(!activeConfig || document.getElementById('dashboard').style.display !== 'none') return;
-        const now = performance.now();
-        const isVideoStalled = (video.currentTime === lastVideoTime);
-        lastVideoTime = video.currentTime;
-
-        if(now - lastWorkerResponse > 3000 || isVideoStalled) {
-            isProcessing = false;
-            worker.postMessage("PING");
         }
-        if(now - lastWorkerResponse > 7000) {
-            initWorker();
-            bootApp();
+
+        /* ================= FULLSCREEN ================= */
+        function toggleFullScreen(){
+            if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else if(document.exitFullscreen) document.exitFullscreen();
         }
-    }, 2000);
-}
 
-function processLoop() {
-    if(!isProcessing && video.videoWidth>0 && activeConfig){
-        offCtx.drawImage(video,0,0,offCanvas.width,offCanvas.height);
-        enqueueFrame(offCtx.getImageData(0,0,offCanvas.width,offCanvas.height));
-        if(frameQueue.length){
-            isProcessing = true;
-            const img = frameQueue.pop();
-            frameQueue.length=0;
-            worker.postMessage({...activeConfig, img, isFront: currentFacingMode==="user"}, [img.data.buffer]);
-        }
-    }
-    const now = performance.now();
-    if(now - lastTime >=1000){
-        document.getElementById('fps-tag').innerText=`FPS: ${frames}`;
-        frames=0; lastTime=now;
-    }
-    requestAnimationFrame(processLoop);
-}
-
-function toggleFullScreen(){
-    if(!document.fullscreenElement) document.documentElement.requestFullscreen();
-    else if(document.exitFullscreen) document.exitFullscreen();
-}
-
-document.addEventListener('fullscreenchange',()=>{
-    const btn = document.getElementById('fsToggle');
-    if(document.fullscreenElement){
-        btn.classList.add('exit'); btn.classList.replace('pos-normal','pos-fs');
-        clearTimeout(fsTimer);
-        fsTimer=setTimeout(()=>btn.style.display='none',3000);
-    }else{
-        btn.classList.remove('exit'); btn.classList.replace('pos-fs','pos-normal');
-        btn.style.display='block';
-    }
-});
-
-let touchX=0;
-window.addEventListener('touchstart',e=>{
-    touchX=e.changedTouches[0].screenX;
-    const btn=document.getElementById('fsToggle');
-    btn.style.display='block';
-    clearTimeout(fsTimer);
-    if(document.fullscreenElement) fsTimer=setTimeout(()=>btn.style.display='none',3000);
-});
-window.addEventListener('touchend',e=>{
-    if(touchX - e.changedTouches[0].screenX >100) toggleRecording();
-});
-
-let taps=0, tapT;
-window.addEventListener('touchstart',()=>{
-    taps++; clearTimeout(tapT);
-    tapT=setTimeout(()=>{
-        if(taps===2){ const f=document.getElementById('fps-tag'); f.style.display=f.style.display==='none'?'block':'none'; }
-        if(taps===3){ currentFacingMode = currentFacingMode==="user"?"environment":"user"; bootApp(); }
-        if(taps===4){ const l=document.createElement('a'); l.download=`snap_${Date.now()}.png`; l.href=canvas.toDataURL(); l.click(); }
-        taps=0;
-    },300);
-});
-</script>
+        document.addEventListener('fullscreenchange',()=>{
+            if(document.fullscreenElement){
+                fsToggle.classList.add('exit');
+                fsToggle.classList.replace('pos-normal','pos-fs');
+                clearTimeout(fsTimer);
+                fsTimer=setTimeout(()=>fsToggle.style.display='none',3000);
+            } else {
+                fsToggle.classList.remove('exit');
+                fsToggle.classList.replace('pos-fs','pos-normal');
+                fsToggle.style.display='block';
+            }
+        });
+    </script>
 </body>
 </html>
