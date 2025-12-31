@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <title>Laplacian Pro | Absolute Master v2.0.3</title>
+    <title>Laplacian Pro | Absolute Master v2.0.4</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #0f0; font-family: monospace; overflow: hidden; touch-action: none; }
         #dashboard { position: fixed; inset: 0; z-index: 100; background: #0a0a0a; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; overflow-y: auto; }
@@ -20,35 +20,30 @@
         #bootBtn { background: #222; color: #444; cursor: not-allowed; margin-top: 10px; transition: 0.3s; }
         #bootBtn.ready { background: #0f0; color: #000; cursor: pointer; font-weight: bold; }
         
-        /* Consolidate Stats Tags to Gray */
         .stats-box { position: fixed; top: 15px; left: 15px; z-index: 60; display: none; pointer-events: none; flex-direction: column; gap: 2px; }
-        .stat-item { 
-            color: #888; background: rgba(50,50,50,0.6); 
-            padding: 5px 8px; border: 1px solid #555; font-size: 12px; 
-            min-width: 60px; text-align: left;
-        }
+        .stat-item { color: #888; background: rgba(50,50,50,0.6); padding: 5px 8px; border: 1px solid #555; font-size: 12px; min-width: 60px; text-align: left; }
         
         #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 55; color: #f00; display: none; font-weight: bold; animation: blink 1s infinite; }
         
-        /* Smaller Fullscreen Toggle - Gray/Silver Style */
         #fsToggle { 
             position: fixed; z-index: 80; width: 34px; height: 34px; 
             border: 2px solid #555; display: none; cursor: pointer;
             background: rgba(50,50,50,0.5); border-radius: 5px;
             bottom: 30px; right: 30px;
         }
-        #fsToggle::after {
-            content: ""; position: absolute; inset: 8px;
-            border: 2px solid #888; border-style: solid none none solid;
-        }
+        #fsToggle::after { content: ""; position: absolute; inset: 8px; border: 2px solid #888; border-style: solid none none solid; }
         #fsToggle.exit::after { border-style: none solid solid none; }
 
         @keyframes blink { 50% { opacity: 0; } }
-        canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 1; }
+        /* Capture Fix: Ensure Canvas is explicitly layered */
+        canvas { position: absolute; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: none; z-index: 10; background: #000; }
         #webcam { display: none; }
         .status { font-size: 10px; margin-top: 10px; color: #f00; font-weight: bold; }
         #errorLog { font-size: 9px; color: #fa0; margin-top: 10px; width: 100%; height: 40px; background: #000; border: none; outline: none; resize: none; }
         .rec-box { border: 1px dashed #f00; padding: 10px; margin-bottom: 15px; }
+
+        /* Pseudo-FS to help Streaming Apps */
+        :fullscreen canvas { width: 100vw; height: 100vh; }
     </style>
 </head>
 <body>
@@ -163,7 +158,8 @@
     <script>
         let currentPanel = 'A', isLibReady = false, isRecording = false;
         const video = document.getElementById('webcam'), canvas = document.getElementById('outputCanvas');
-        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+        // Capture Fix: Use standard synchronization for streaming stability
+        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: false });
         const offCanvas = document.createElement('canvas'), offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
         
         let worker, currentFacingMode = "user", activeConfig = null;
@@ -184,7 +180,10 @@
 
         if (navigator.getBattery) {
             navigator.getBattery().then(bat => {
-                const updateBat = () => document.getElementById('bat-tag').innerText = `BAT: ${Math.round(bat.level * 100)}%`;
+                const updateBat = () => {
+                    const el = document.getElementById('bat-tag');
+                    if(el) el.innerText = `BAT: ${Math.round(bat.level * 100)}%`;
+                };
                 updateBat(); bat.onlevelchange = updateBat;
             });
         }
@@ -266,7 +265,8 @@
                 worker.postMessage({ img: data, ...activeConfig, isFront: (currentFacingMode === "user") }, [data.data.buffer]);
             }
             if (now - lastTime >= 1000) { 
-                document.getElementById('fps-tag').innerText = `FPS: ${frames}`; 
+                const ft = document.getElementById('fps-tag');
+                if(ft) ft.innerText = `FPS: ${frames}`; 
                 frames = 0; lastTime = now; 
             }
             requestAnimationFrame(loop);
@@ -274,7 +274,7 @@
 
         async function toggleRecording() {
             if (isRecording) {
-                mediaRecorder.stop();
+                if(mediaRecorder) mediaRecorder.stop();
                 isRecording = false;
                 document.getElementById('rec-indicator').style.display = 'none';
             } else {
@@ -303,19 +303,31 @@
         }
 
         function toggleFullScreen() {
-            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
-            else if (document.exitFullscreen) document.exitFullscreen();
+            const doc = window.document;
+            const docEl = doc.documentElement;
+
+            const requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
+            const cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
+
+            if (!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
+                requestFullScreen.call(docEl);
+            } else {
+                cancelFullScreen.call(doc);
+            }
+            // Capture Fix: Force canvas resize on toggle
+            setTimeout(() => {
+                canvas.style.width = '100vw';
+                canvas.style.height = '100vh';
+            }, 100);
         }
 
         let touchStartX = 0;
         window.addEventListener('touchstart', e => {
             touchStartX = e.changedTouches[0].screenX;
-            
             const fsBtn = document.getElementById('fsToggle');
             fsBtn.style.display = 'block';
             clearTimeout(fsTimer);
             fsTimer = setTimeout(() => fsBtn.style.display = 'none', 1000);
-
             if (e.touches.length === 2) toggleRecording();
         });
 
