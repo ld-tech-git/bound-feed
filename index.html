@@ -165,25 +165,33 @@
         const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
         let worker, isProcessing = false, currentFacingMode = "user", activeConfig = null;
         let mediaRecorder, recordedChunks = [], frames = 0, lastTime = performance.now();
-        
-        // NEW FEATURE: Watchdog for frozen feed
         let zeroFpsTimer = 0;
 
-        worker = new Worker('./worker.js');
-        worker.onmessage = (e) => {
-            if (e.data === "READY") {
-                isLibReady = true;
-                const b = document.getElementById('bootBtn');
-                b.innerText = "BOOT ENGINE"; b.classList.add('ready');
-                document.getElementById('status').innerText = "ONLINE"; document.getElementById('status').style.color = "#0f0";
-            } else if (e.data === "RECOVER") {
-                isProcessing = false;
-            } else { 
-                ctx.putImageData(e.data, 0, 0); 
-                isProcessing = false; 
-                frames++; 
-            }
-        };
+        // Wrapped worker creation for easy re-booting
+        function initWorker() {
+            if (worker) worker.terminate();
+            worker = new Worker('./worker.js');
+            worker.onmessage = (e) => {
+                if (e.data === "READY") {
+                    isLibReady = true;
+                    const b = document.getElementById('bootBtn');
+                    if(b) {
+                        b.innerText = "BOOT ENGINE"; b.classList.add('ready');
+                    }
+                    const s = document.getElementById('status');
+                    if(s) {
+                        s.innerText = "ONLINE"; s.style.color = "#0f0";
+                    }
+                } else if (e.data === "RECOVER") {
+                    isProcessing = false;
+                } else { 
+                    ctx.putImageData(e.data, 0, 0); 
+                    isProcessing = false; 
+                    frames++; 
+                }
+            };
+        }
+        initWorker();
 
         function switchPanel(p) {
             currentPanel = p;
@@ -195,13 +203,11 @@
 
         async function bootApp() {
             if(!isLibReady) return;
-            
             isProcessing = false;
-            zeroFpsTimer = 0; // Reset watchdog on boot
+            zeroFpsTimer = 0;
             if (video.srcObject) {
                 video.srcObject.getTracks().forEach(track => track.stop());
             }
-
             activeConfig = {
                 panel: currentPanel,
                 scale: parseFloat(document.getElementById(currentPanel === 'A' ? 'scaleA' : 'scaleB').value),
@@ -210,7 +216,6 @@
                 k: parseInt(document.getElementById('kSize').value),
                 oldCode: (currentPanel === 'B' && document.getElementById('logicB').value === 'old_code')
             };
-
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
@@ -226,7 +231,6 @@
                     requestAnimationFrame(processLoop);
                 };
             } catch (err) {
-                console.error("Camera Boot Error:", err);
                 document.getElementById('status').innerText = "CAMERA ERROR";
             }
         }
@@ -282,19 +286,18 @@
             const now = performance.now();
             if (now - lastTime >= 1000) { 
                 document.getElementById('fps-tag').innerText = `FPS: ${frames}`; 
-                
-                // AUTO-RECOVERY LOGIC
                 if (frames === 0 && activeConfig) {
                     zeroFpsTimer += 1000;
                     if (zeroFpsTimer >= 3000) {
-                        console.warn("Watchdog: Engine freeze detected. Forcing unlock...");
+                        // CHANGE: Full Worker Reboot if stuck
+                        initWorker(); 
+                        video.play();
                         isProcessing = false;
                         zeroFpsTimer = 0;
                     }
                 } else {
                     zeroFpsTimer = 0;
                 }
-
                 frames = 0; 
                 lastTime = now; 
             }
@@ -309,12 +312,10 @@
         let taps = 0, tapT, fsTimer;
         window.addEventListener('touchstart', () => {
             taps++; clearTimeout(tapT);
-            
             const btn = document.getElementById('fsToggle');
             btn.style.display = 'block';
             clearTimeout(fsTimer);
             fsTimer = setTimeout(() => { if(document.fullscreenElement) btn.style.display = 'none'; }, 3000);
-
             tapT = setTimeout(() => {
                 if (taps === 2) { const f = document.getElementById('fps-tag'); f.style.display = f.style.display === 'none' ? 'block' : 'none'; }
                 if (taps === 3) { currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; bootApp(); }
