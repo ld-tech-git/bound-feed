@@ -25,7 +25,7 @@ onmessage = function(e) {
         if (isFront) cv.flip(src, src, 1);
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-        let bVal = blur || 5;
+        let bVal = blur || 3;
         if (bVal % 2 === 0) bVal += 1;
 
         if (panel === 'A') {
@@ -40,7 +40,7 @@ onmessage = function(e) {
                 cv.Laplacian(blurred, edges, cv.CV_8U, 5);
                 cv.threshold(edges, edges, 0, 255, cv.THRESH_BINARY + cv.THRESH_OTSU);
             } else {
-                cv.medianBlur(gray, blurred, bVal > 5 ? 5 : 3);
+                cv.medianBlur(gray, blurred, bVal);
                 cv.Laplacian(blurred, edges, cv.CV_8U, k || 3);
                 cv.threshold(edges, edges, sense || 40, 255, cv.THRESH_BINARY);
             }
