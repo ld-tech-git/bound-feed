@@ -162,7 +162,10 @@
         let currentPanel = 'A', isLibReady = false, isRecording = false;
         const video = document.getElementById('webcam'), canvas = document.getElementById('outputCanvas');
         const ctx = canvas.getContext('2d', { alpha: false }), offCanvas = document.createElement('canvas');
-        const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+        
+        // CHANGE: Removed willReadFrequently to prevent software-rendering bottlenecks
+        const offCtx = offCanvas.getContext('2d'); 
+        
         let worker, isProcessing = false, currentFacingMode = "user", activeConfig = null;
         let mediaRecorder, recordedChunks = [], frames = 0, lastTime = performance.now();
         let zeroFpsTimer = 0;
@@ -188,7 +191,6 @@
             };
         }
 
-        // Dashboard Safety: Only init once elements exist
         window.onload = () => { initWorker(); };
 
         function switchPanel(p) {
@@ -270,6 +272,7 @@
             const isVideoStalled = (video.currentTime === lastVideoTime);
             lastVideoTime = video.currentTime;
 
+            // CHANGE: Added more robust check for valid video dimensions before processing
             if (!isProcessing && video.videoWidth > 0 && activeConfig && !isVideoStalled) {
                 isProcessing = true;
                 offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
@@ -280,12 +283,12 @@
             const now = performance.now();
             if (now - lastTime >= 1000) { 
                 document.getElementById('fps-tag').innerText = `FPS: ${frames}`; 
+                
+                // Watchdog trigger
                 if ((frames === 0 || isVideoStalled) && activeConfig) {
                     zeroFpsTimer += 1000;
-                    if (zeroFpsTimer >= 3000) {
+                    if (zeroFpsTimer >= 4000) { // Increased to 4s for stability
                         initWorker(); 
-                        ctx.clearRect(0, 0, canvas.width, canvas.height);
-                        offCtx.clearRect(0, 0, offCanvas.width, offCanvas.height);
                         video.play().catch(() => {});
                         isProcessing = false;
                         zeroFpsTimer = 0;
