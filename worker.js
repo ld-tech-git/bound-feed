@@ -56,8 +56,8 @@ onmessage = function(e) {
         mask.setTo(new cv.Scalar(0, 0, 0, 255));
         src.copyTo(mask, edges);
 
-        const outputArray = new Uint8ClampedArray(mask.data);
-        const output = new ImageData(outputArray, mask.cols, mask.rows);
+        // CHANGE: Simplified the ImageData creation to reduce memory overhead
+        const output = new ImageData(new Uint8ClampedArray(mask.data), mask.cols, mask.rows);
         postMessage(output, [output.data.buffer]);
 
     } catch (err) {
