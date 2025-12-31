@@ -23,14 +23,15 @@
         #fps-tag { position: fixed; top: 15px; left: 15px; z-index: 60; color: #0f0; display: none; background: rgba(0,0,0,0.6); padding: 8px; border: 1px solid #0f0; pointer-events: none; }
         #rec-indicator { position: fixed; top: 15px; right: 15px; z-index: 55; color: #f00; display: none; font-weight: bold; animation: blink 1s infinite; }
         
+        /* RESTORED: FS Toggle Styling */
         #fsToggle { 
             position: fixed; z-index: 80; width: 44px; height: 44px; 
-            border: 2px solid #0f0; display: none; cursor: pointer;
-            background: rgba(0,0,0,0.5); border-radius: 5px;
+            border: 2px solid #555; display: none; cursor: pointer;
+            background: rgba(50,50,50,0.5); border-radius: 5px;
         }
         #fsToggle::after {
             content: ""; position: absolute; inset: 10px;
-            border: 3px solid #0f0; border-style: solid none none solid;
+            border: 3px solid #888; border-style: solid none none solid;
         }
         #fsToggle.exit::after { border-style: none solid solid none; }
         
@@ -169,7 +170,7 @@
         
         let lastWorkerResponse = performance.now();
         let lastVideoTime = -1;
-        let healthInterval;
+        let healthInterval, fsTimer;
 
         function initWorker() {
             if (worker) worker.terminate();
@@ -228,7 +229,12 @@
                     canvas.height = offCanvas.height = Math.floor(video.videoHeight / activeConfig.scale);
                     document.getElementById('dashboard').style.display = 'none';
                     canvas.style.display = 'block';
-                    document.getElementById('fsToggle').style.display = 'block';
+                    
+                    /* RESTORED: FS Icon position on boot */
+                    const fs = document.getElementById('fsToggle');
+                    fs.style.display = 'block';
+                    fs.className = 'pos-normal';
+
                     if(!healthInterval) startHealthCheck();
                     requestAnimationFrame(processLoop);
                 };
@@ -245,14 +251,14 @@
                 const isVideoStalled = (video.currentTime === lastVideoTime);
                 lastVideoTime = video.currentTime;
 
-                // STAGE 1: Soft Reset (Worker Unstuck)
-                if (now - lastWorkerResponse > 3000) {
-                    isProcessing = false;
+                // Watchdog: If worker or camera is stuck, force-unlock the processing flag
+                if (now - lastWorkerResponse > 3000 || isVideoStalled) {
+                    isProcessing = false; 
                     worker.postMessage("PING");
                 }
 
-                // STAGE 2: Hard Reset (Reboot Pipeline)
-                if (now - lastWorkerResponse > 7000 || (isVideoStalled && now - lastWorkerResponse > 5000)) {
+                // Hard reboot only after persistent failure (7s)
+                if (now - lastWorkerResponse > 7000) {
                     initWorker(); 
                     bootApp(); 
                 }
@@ -279,9 +285,27 @@
             else if (document.exitFullscreen) document.exitFullscreen();
         }
 
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('fsToggle');
+            if (document.fullscreenElement) {
+                btn.classList.add('exit'); btn.classList.replace('pos-normal', 'pos-fs');
+                clearTimeout(fsTimer); fsTimer = setTimeout(() => btn.style.display = 'none', 3000);
+            } else {
+                btn.classList.remove('exit'); btn.classList.replace('pos-fs', 'pos-normal');
+                btn.style.display = 'block';
+            }
+        });
+
         window.addEventListener('contextmenu', e => { e.preventDefault(); toggleRecording(); });
         let touchX = 0;
-        window.addEventListener('touchstart', e => { touchX = e.changedTouches[0].screenX; });
+        window.addEventListener('touchstart', e => { 
+            touchX = e.changedTouches[0].screenX; 
+            /* RESTORED: Show FS icon on any touch */
+            const btn = document.getElementById('fsToggle');
+            btn.style.display = 'block';
+            clearTimeout(fsTimer);
+            if(document.fullscreenElement) fsTimer = setTimeout(() => btn.style.display = 'none', 3000);
+        });
         window.addEventListener('touchend', e => { if (touchX - e.changedTouches[0].screenX > 100) toggleRecording(); });
 
         let taps = 0, tapT;
