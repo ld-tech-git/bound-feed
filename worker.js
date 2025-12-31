@@ -1,8 +1,7 @@
 importScripts('https://docs.opencv.org/4.10.0/opencv.js');
 
-// Globals for memory reuse
 let src, gray, blurred, edges, mask;
-let isInitialized = false;
+let currentW = 0, currentH = 0;
 
 cv['onRuntimeInitialized'] = () => { postMessage("READY"); };
 
@@ -12,23 +11,29 @@ onmessage = function(e) {
     try {
         const { img, panel, blur, k, sense, isFront, oldCode } = e.data;
 
-        // CHANGE: Only initialize Mats once we have valid image dimensions
-        if (!isInitialized) {
+        // CHANGE: Check for dimension changes (common on camera flip) and re-initialize Mats
+        if (img.width !== currentW || img.height !== currentH) {
+            if (src) src.delete();
+            if (gray) gray.delete();
+            if (blurred) blurred.delete();
+            if (edges) edges.delete();
+            if (mask) mask.delete();
+
             src = new cv.Mat(img.height, img.width, cv.CV_8UC4);
             gray = new cv.Mat();
             blurred = new cv.Mat();
             edges = new cv.Mat();
             mask = new cv.Mat(img.height, img.width, cv.CV_8UC4, [0, 0, 0, 255]);
-            isInitialized = true;
+            
+            currentW = img.width;
+            currentH = img.height;
         }
 
-        // Set the current image data into the existing Mat
         src.data.set(img.data);
         if (isFront) cv.flip(src, src, 1);
 
         cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
 
-        // CHANGE: Logic check - blur must be an odd number for OpenCV kernels
         let bVal = blur || 3;
         if (bVal % 2 === 0) bVal += 1;
 
@@ -57,7 +62,6 @@ onmessage = function(e) {
         postMessage(output, [output.data.buffer]);
 
     } catch (err) {
-        // CHANGE: Recovery message ensures the main loop doesn't stay locked
         postMessage("RECOVER");
     }
 };
