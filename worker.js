@@ -1,4 +1,4 @@
-importScripts('https://docs.opencv.org/4.10.0/opencv.js');
+importScripts('https://docs.opencv.org/4.13.0/opencv.js');
 
 cv['onRuntimeInitialized'] = () => { postMessage("READY"); };
 
