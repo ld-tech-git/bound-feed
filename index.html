@@ -251,8 +251,7 @@
                     canvas.style.display = 'block';
                     requestWakeLock();
                     if(!healthInt) startHealth();
-                    if (animationId) cancelAnimationFrame(animationId);
-                    animationId = requestAnimationFrame(loop);
+                    requestAnimationFrame(loop);
                 };
             } catch (e) { log("Camera Error: " + e.name); }
         }
@@ -261,8 +260,8 @@
             healthInt = setInterval(() => {
                 if (document.getElementById('dashboard').style.display !== 'none') return;
                 const now = performance.now();
-                //const workerDead = (now - lastResponse) > 6500;
-                const workerDead = isProcessing && (now - processStart > 2500);
+                const workerDead = (now - lastResponse) > 6500;
+                //const workerDead = isProcessing && (now - processStart > 2500);
                 //const cameraDead = (video.currentTime === lastVidT) && ((now - lastFrameSent) > 2000);
                 const cameraDead = video.readyState >= 2 && video.currentTime === lastVidT && (now - lastFrameSent > 3500);
                 if (workerDead || cameraDead) {
@@ -291,7 +290,7 @@
                 if(ft) ft.innerText = `FPS: ${frames}`; 
                 frames = 0; lastTime = now; 
             }
-            animationId = requestAnimationFrame(loop);        
+            requestAnimationFrame(loop);
         }
 
         async function toggleRecording() {
