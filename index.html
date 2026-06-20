@@ -185,12 +185,16 @@
                 if (e.data === "READY") {
                     isLibReady = true;
                     document.getElementById('bootBtn').classList.add('ready');
-                } else if (e.data instanceof ImageData) { 
+                } else if (e.data === "ERROR") {
+                    log("Worker exception");
+                    isProcessing = false;
+                    }
+                else if (e.data instanceof ImageData) { 
                     ctx.putImageData(e.data, 0, 0); 
                     isProcessing = false; frames++; lastResponse = performance.now();
-                }
-            };
-        }
+                    }
+                };
+            }
 
         window.onload = initWorker;
 
