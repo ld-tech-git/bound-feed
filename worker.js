@@ -3,6 +3,7 @@ importScripts('https://docs.opencv.org/4.13.0/opencv.js');
 cv['onRuntimeInitialized'] = () => { postMessage("READY"); };
 
 onmessage = function(e) {
+    try {
     if (e.data === "READY" || !cv.Mat) return;
 
     const { img, panel, blur, k, sense, isFront, oldCode } = e.data;
@@ -40,4 +41,5 @@ onmessage = function(e) {
     postMessage(output, [output.data.buffer]);
 
     src.delete(); gray.delete(); blurred.delete(); edges.delete(); mask.delete();
+    } catch(err) {postMessage("ERROR");}
 };
