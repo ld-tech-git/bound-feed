@@ -188,16 +188,18 @@
             if (worker) worker.terminate();
             worker = new Worker('./worker.js');
             worker.onmessage = (e) => {
-                if (e.data === "READY") {
-                    isLibReady = true;
-                    document.getElementById('bootBtn').classList.add('ready');
+                if (e.data === "READY") { 
+                    isLibReady = true; 
+                    document.getElementById("bootBtn").classList.add("ready"); 
+                    lastResponse = performance.now(); 
                 } else if (e.data === "ERROR") {
                     log("Worker exception");
                     isProcessing = false;
                     }
                 else if (e.data instanceof ImageData) { 
-                    ctx.putImageData(e.data, 0, 0); 
-                    isProcessing = false; frames++; lastResponse = performance.now();
+                    try{ ctx.putImageData(e.data,0,0); } 
+                    catch(err){ log("putImageData failed"); } 
+                    isProcessing=false; frames++; lastResponse=performance.now();
                     }
                 };
             }
@@ -244,6 +246,9 @@
                     video: { width: { ideal: parseInt(document.getElementById('res').value) }, facingMode: currentFacingMode } 
                 });
                 video.srcObject = stream;
+                lastVidT = -1;
+                lastResponse = performance.now();
+                lastFrameSent = performance.now();
                 video.onloadedmetadata = () => {
                     video.play();
                     handleResize();
@@ -264,13 +269,8 @@
                 //const workerDead = isProcessing && (now - processStart > 2500);
                 //const cameraDead = (video.currentTime === lastVidT) && ((now - lastFrameSent) > 2000);
                 const cameraDead = video.readyState >= 2 && video.currentTime === lastVidT && (now - lastFrameSent > 3500);
-                if (workerDead || cameraDead) {
-                    log("Watchdog restart");
-                    isProcessing = false;
-                    initWorker();
-                    bootApp();
-                    return;
-                }
+                if (workerDead) { log("Worker restart"); isProcessing = false; initWorker(); return; } 
+                if (cameraDead) { log("Camera restart"); isProcessing = false; bootApp(); return; }
                 lastVidT = video.currentTime;
                 },3000);
         }
@@ -280,8 +280,11 @@
             if (isProcessing && (now - processStart > 600)) isProcessing = false;
             if (!isProcessing && video.readyState >= 2 && activeConfig && worker) {
                 isProcessing = true; processStart = now;
-                offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height);
-                const data = offCtx.getImageData(0, 0, offCanvas.width, offCanvas.height);
+                try { offCtx.drawImage(video, 0, 0, offCanvas.width, offCanvas.height); } 
+                catch(err){ isProcessing = false; requestAnimationFrame(loop); return; }
+                let data; 
+                try{ data = offCtx.getImageData( 0, 0, offCanvas.width, offCanvas.height ); } 
+                catch(err){ isProcessing = false; requestAnimationFrame(loop); return; }
                 lastFrameSent = performance.now();
                 worker.postMessage( { img: data, ...activeConfig, isFront: (currentFacingMode === "user") }, [data.data.buffer]);   
             }
