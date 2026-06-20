@@ -160,12 +160,18 @@
         let isProcessing = false, processStart = 0, frames = 0, lastTime = performance.now();
         let lastResponse = performance.now(), lastFrameSent = performance.now(), lastVidT = -1, healthInt, fsTimer;
         
-        let wakeLock = null, mediaRecorder = null, recordedChunks = [];
+        let wakeLock = null, mediaRecorder = null, recordedChunks = [], animationId = null;
 
         function log(msg) { document.getElementById('errorLog').value += `> ${msg}\n`; }
 
         async function requestWakeLock() {
-            try { if ('wakeLock' in navigator) { wakeLock = await navigator.wakeLock.request('screen'); } } catch (err) {}
+        if (!('wakeLock' in navigator)) return;
+        try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.onrelease = () => { if (!document.hidden) requestWakeLock();};
+        } catch (err) {
+        log("WakeLock: " + err.message);
+        }
         }
 
         if (navigator.getBattery) {
@@ -245,7 +251,8 @@
                     canvas.style.display = 'block';
                     requestWakeLock();
                     if(!healthInt) startHealth();
-                    requestAnimationFrame(loop);
+                    if (animationId) cancelAnimationFrame(animationId);
+                    animationId = requestAnimationFrame(loop);
                 };
             } catch (e) { log("Camera Error: " + e.name); }
         }
@@ -254,8 +261,10 @@
             healthInt = setInterval(() => {
                 if (document.getElementById('dashboard').style.display !== 'none') return;
                 const now = performance.now();
-                const workerDead = (now - lastResponse) > 6500;
-                const cameraDead = (video.currentTime === lastVidT) && ((now - lastFrameSent) > 2000);
+                //const workerDead = (now - lastResponse) > 6500;
+                const workerDead = isProcessing && (now - processStart > 2500);
+                //const cameraDead = (video.currentTime === lastVidT) && ((now - lastFrameSent) > 2000);
+                const cameraDead = video.readyState >= 2 && video.currentTime === lastVidT && (now - lastFrameSent > 3500);
                 if (workerDead || cameraDead) {
                     log("Watchdog restart");
                     isProcessing = false;
@@ -282,7 +291,7 @@
                 if(ft) ft.innerText = `FPS: ${frames}`; 
                 frames = 0; lastTime = now; 
             }
-            requestAnimationFrame(loop);
+            animationId = requestAnimationFrame(loop);        
         }
 
         async function toggleRecording() {
